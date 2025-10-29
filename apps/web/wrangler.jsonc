@@ -2,15 +2,6 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "tabiheim-web",
   "compatibility_date": "2025-10-29",
-  "pages_build_output_dir": "./build/client",
-  // SPA fallback configuration - all unmatched routes serve index.html
-  "routes": [
-    {
-      "pattern": "/*",
-      "custom": {
-        "type": "spa"
-      }
-    }
-  ]
+  "pages_build_output_dir": "./build/client"
 }
 
