@@ -1,5 +1,5 @@
-import logoDark from "./logo-dark.svg";
-import logoLight from "./logo-light.svg";
+import logoDark from './logo-dark.svg';
+import logoLight from './logo-light.svg';
 
 export function Welcome() {
   return (
@@ -23,6 +23,9 @@ export function Welcome() {
           <nav className="rounded-3xl border border-gray-200 p-6 dark:border-gray-700 space-y-4">
             <p className="leading-6 text-gray-700 dark:text-gray-200 text-center">
               What&apos;s next?
+            </p>
+            <p className="leading-6 text-gray-700 dark:text-gray-200 text-center">
+              So much is next!
             </p>
             <ul>
               {resources.map(({ href, text, icon }) => (
@@ -48,8 +51,8 @@ export function Welcome() {
 
 const resources = [
   {
-    href: "https://reactrouter.com/docs",
-    text: "React Router Docs",
+    href: 'https://reactrouter.com/docs',
+    text: 'React Router Docs',
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -68,8 +71,8 @@ const resources = [
     ),
   },
   {
-    href: "https://rmx.as/discord",
-    text: "Join Discord",
+    href: 'https://rmx.as/discord',
+    text: 'Join Discord',
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
