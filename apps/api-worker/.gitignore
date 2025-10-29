@@ -1,6 +1,5 @@
 # prod
 dist/
-public/
 
 # dev
 .yarn/

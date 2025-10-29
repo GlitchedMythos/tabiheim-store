@@ -7,10 +7,9 @@
     "dev": "pnpm --parallel dev",
     "dev:api": "pnpm --filter server dev",
     "dev:web": "pnpm --filter web dev",
-    "build": "pnpm build:web && pnpm build:api",
-    "build:api": "pnpm --filter server build",
+    "build": "pnpm --recursive build",
+    "build:api": "pnpm --filter server deploy",
     "build:web": "pnpm --filter web build",
-    "deploy": "pnpm install && pnpm build:web && pnpm --filter server deploy",
     "typecheck": "pnpm --recursive typecheck"
   },
   "keywords": [],
