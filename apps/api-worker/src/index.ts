@@ -15,4 +15,13 @@ app.get('/api/v1/inventory', (c) => {
   );
 });
 
+app.get('/api/v1/inventory/:id', (c) => {
+  return c.json(
+    {
+      message: `Hello Hono!, ${c.req.param('id')}`,
+    },
+    200
+  );
+});
+
 export default app;
