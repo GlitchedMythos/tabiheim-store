@@ -1,8 +1,12 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { createSupabaseClient } from './lib/supabase';
 import { Env } from './types';
 
 const app = new Hono<{ Bindings: Env }>();
+
+// Enable CORS for all routes
+app.use('/*', cors());
 
 app.get('/', (c) => {
   return c.text('Hello Hono!');
@@ -104,6 +108,169 @@ app.get('/api/v1/users', async (c) => {
         error:
           error instanceof Error ? error.message : 'Unknown error',
         message: 'Failed to fetch users',
+      },
+      500
+    );
+  }
+});
+
+/**
+ * Counter endpoint - Get current counter value
+ * Returns the current value of the shared counter
+ */
+app.get('/api/v1/counter', async (c) => {
+  try {
+    const supabase = createSupabaseClient(c.env);
+
+    const { data, error } = await supabase
+      .from('counter')
+      .select('value')
+      .eq('id', 1)
+      .single();
+
+    if (error) {
+      return c.json(
+        {
+          error: error.message,
+          message: 'Failed to fetch counter',
+        },
+        500
+      );
+    }
+
+    return c.json(
+      {
+        value: data.value,
+      },
+      200
+    );
+  } catch (error) {
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Failed to fetch counter',
+      },
+      500
+    );
+  }
+});
+
+/**
+ * Counter endpoint - Increment counter
+ * Increments the counter by 1 and returns the new value
+ */
+app.post('/api/v1/counter/increment', async (c) => {
+  try {
+    const supabase = createSupabaseClient(c.env);
+
+    // First get the current value
+    const { data: currentData, error: fetchError } = await supabase
+      .from('counter')
+      .select('value')
+      .eq('id', 1)
+      .single();
+
+    if (fetchError) {
+      return c.json(
+        {
+          error: fetchError.message,
+          message: 'Failed to fetch counter',
+        },
+        500
+      );
+    }
+
+    // Update with incremented value
+    const { data, error } = await supabase
+      .from('counter')
+      .update({ value: currentData.value + 1 })
+      .eq('id', 1)
+      .select('value')
+      .single();
+
+    if (error) {
+      return c.json(
+        {
+          error: error.message,
+          message: 'Failed to increment counter',
+        },
+        500
+      );
+    }
+
+    return c.json(
+      {
+        value: data.value,
+        action: 'increment',
+      },
+      200
+    );
+  } catch (error) {
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Failed to increment counter',
+      },
+      500
+    );
+  }
+});
+
+/**
+ * Counter endpoint - Decrement counter
+ * Decrements the counter by 1 and returns the new value
+ */
+app.post('/api/v1/counter/decrement', async (c) => {
+  try {
+    const supabase = createSupabaseClient(c.env);
+
+    // First get the current value
+    const { data: currentData, error: fetchError } = await supabase
+      .from('counter')
+      .select('value')
+      .eq('id', 1)
+      .single();
+
+    if (fetchError) {
+      return c.json(
+        {
+          error: fetchError.message,
+          message: 'Failed to fetch counter',
+        },
+        500
+      );
+    }
+
+    // Update with decremented value
+    const { data, error } = await supabase
+      .from('counter')
+      .update({ value: currentData.value - 1 })
+      .eq('id', 1)
+      .select('value')
+      .single();
+
+    if (error) {
+      return c.json(
+        {
+          error: error.message,
+          message: 'Failed to decrement counter',
+        },
+        500
+      );
+    }
+
+    return c.json(
+      {
+        value: data.value,
+        action: 'decrement',
+      },
+      200
+    );
+  } catch (error) {
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Failed to decrement counter',
       },
       500
     );

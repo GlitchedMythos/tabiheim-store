@@ -16,23 +16,47 @@ A modern, production-ready template for building full-stack React applications u
 
 ## Getting Started
 
+### Prerequisites
+
+This application requires Supabase environment variables to be configured.
+
+**⚠️ Important**: You must create a `.env` file before running the app.
+
 ### Installation
 
-Install the dependencies:
+1. Install the dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
+
+2. **Create `.env` file** with Supabase configuration:
+
+```bash
+# Create .env file in apps/web directory
+touch .env
+```
+
+Add the following content to `.env`:
+
+```env
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+```
+
+📖 **See [ENV_SETUP.md](./ENV_SETUP.md) for detailed environment setup instructions.**
 
 ### Development
 
 Start the development server with HMR:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 Your application will be available at `http://localhost:5173`.
+
+> **Note**: Make sure the Supabase local instance is running in the `api-worker` directory before starting the web app.
 
 ## Building for Production
 
