@@ -1,12 +1,21 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { createSupabaseClient } from './lib/supabase';
+import type { AuthVariables } from './middleware/auth';
+import { optionalAuth } from './middleware/auth';
 import { Env } from './types';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env; Variables: Partial<AuthVariables> }>();
 
-// Enable CORS for all routes
-app.use('/*', cors());
+// Enable CORS for all routes with authentication header support
+app.use('/*', cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  exposeHeaders: ['Content-Length'],
+  maxAge: 600,
+  credentials: true,
+}));
 
 app.get('/', (c) => {
   return c.text('Hello Hono!');
@@ -290,6 +299,80 @@ app.get('/api/v1/inventory/:id', (c) => {
   return c.json(
     {
       message: `Hello Hono!, ${c.req.param('id')}`,
+    },
+    200
+  );
+});
+
+/**
+ * Protected Test Endpoint
+ *
+ * This endpoint demonstrates authentication-based branching logic.
+ * It returns different responses based on whether the user is authenticated or not.
+ *
+ * Authentication Method:
+ * - Uses optionalAuth middleware to check for authentication without blocking the request
+ * - Checks if user exists in context to determine authentication status
+ *
+ * Response Behavior:
+ * - NOT AUTHENTICATED (no valid JWT token):
+ *   - Status: 403 Forbidden
+ *   - Response: { error, message, authenticated: false }
+ *
+ * - AUTHENTICATED (valid JWT token):
+ *   - Status: 200 OK
+ *   - Response: { success, message, authenticated: true, user: {...} }
+ *
+ * This pattern is useful for:
+ * - Public endpoints with enhanced features for authenticated users
+ * - Testing authentication without creating a fully protected endpoint
+ * - Demonstrating JWT verification flow
+ *
+ * @example
+ * ```bash
+ * # Without authentication (returns 403)
+ * curl http://localhost:8787/api/v1/protected/test
+ *
+ * # With authentication (returns 200)
+ * curl -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8787/api/v1/protected/test
+ * ```
+ */
+app.get('/api/v1/protected/test', optionalAuth, async (c) => {
+  // Check if user is authenticated
+  const user = c.get('user');
+
+  if (!user) {
+    // User is NOT authenticated
+    // Return 403 Forbidden with error message
+    return c.json(
+      {
+        error: 'Forbidden',
+        message: 'Authentication required. Please provide a valid JWT token in the Authorization header.',
+        authenticated: false,
+        hint: 'Sign in on the web app to get a JWT token, then include it as: Authorization: Bearer <token>',
+      },
+      403
+    );
+  }
+
+  // User IS authenticated
+  // Return success response with user data
+  return c.json(
+    {
+      success: true,
+      message: `Welcome back, ${user.email}! 🎉`,
+      authenticated: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        created_at: user.created_at,
+        last_sign_in_at: user.last_sign_in_at,
+        // Include user metadata if available
+        ...(user.user_metadata && Object.keys(user.user_metadata).length > 0 && {
+          metadata: user.user_metadata,
+        }),
+      },
+      timestamp: new Date().toISOString(),
     },
     200
   );

@@ -1,4 +1,5 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * Get Supabase configuration from environment
@@ -54,6 +55,16 @@ function getSupabaseClient(): SupabaseClient {
     console.log('Initializing Supabase client with URL:', supabaseUrl);
 
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        // Enable automatic token refresh
+        autoRefreshToken: true,
+        // Persist session in localStorage for cross-tab and reload persistence
+        persistSession: true,
+        // Detect auth redirect in URL after magic link click
+        detectSessionInUrl: true,
+        // Storage key for session data
+        storageKey: 'supabase.auth.token',
+      },
       realtime: {
         params: {
           eventsPerSecond: 10,
@@ -67,7 +78,17 @@ function getSupabaseClient(): SupabaseClient {
 
 /**
  * Supabase client instance for browser use
- * Configured with real-time support
+ * Configured with real-time support and authentication
+ *
+ * Features:
+ * - Automatic session persistence in localStorage
+ * - Automatic token refresh
+ * - Real-time subscriptions
+ * - Magic link authentication support
+ *
+ * @remarks
+ * The client is lazily initialized on first use to avoid initialization errors
+ * in SSR environments or during build time.
  */
 export const supabase = getSupabaseClient();
 
