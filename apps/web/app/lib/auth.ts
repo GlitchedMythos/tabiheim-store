@@ -13,8 +13,8 @@
  * @module auth
  */
 
+import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import type { User, Session } from '@supabase/supabase-js';
 
 /**
  * Authentication result type for sign-in operations
@@ -175,7 +175,10 @@ export async function getCurrentUser(): Promise<User | null> {
     const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error) {
-      console.error('Error getting current user:', error);
+      // Don't log "session missing" as an error - it's the expected state when not logged in
+      if (error.message !== 'Auth session missing!') {
+        console.error('Error getting current user:', error);
+      }
       return null;
     }
 
@@ -220,7 +223,10 @@ export async function getSession(): Promise<Session | null> {
     const { data: { session }, error } = await supabase.auth.getSession();
 
     if (error) {
-      console.error('Error getting session:', error);
+      // Don't log "session missing" as an error - it's the expected state when not logged in
+      if (error.message !== 'Auth session missing!') {
+        console.error('Error getting session:', error);
+      }
       return null;
     }
 
