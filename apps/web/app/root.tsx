@@ -1,7 +1,15 @@
 import '@mantine/core/styles.css';
+// ‼️ import notifications and modals styles after core package styles
+import '@mantine/notifications/styles.css';
 
-import { ColorSchemeScript, mantineHtmlProps, MantineProvider } from '@mantine/core';
-import { useEffect } from "react";
+import {
+  ColorSchemeScript,
+  mantineHtmlProps,
+  MantineProvider,
+} from '@mantine/core';
+import { ModalsProvider } from '@mantine/modals';
+import { Notifications } from '@mantine/notifications';
+import { useEffect } from 'react';
 import {
   isRouteErrorResponse,
   Links,
@@ -9,22 +17,22 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-} from "react-router";
+} from 'react-router';
 
-import type { Route } from "./+types/root";
-import "./app.css";
-import { supabase } from "./lib/supabase";
+import type { Route } from './+types/root';
+import './app.css';
+import { supabase } from './lib/supabase';
 
 export const links: Route.LinksFunction = () => [
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
   {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
+    rel: 'preconnect',
+    href: 'https://fonts.gstatic.com',
+    crossOrigin: 'anonymous',
   },
   {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+    rel: 'stylesheet',
+    href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap',
   },
 ];
 
@@ -33,13 +41,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <html lang="en" {...mantineHtmlProps}>
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1"
+        />
         <ColorSchemeScript />
         <Meta />
         <Links />
       </head>
       <body>
-        <MantineProvider>{children}</MantineProvider>
+        <MantineProvider>
+          <ModalsProvider>
+            <Notifications />
+            {children}
+          </ModalsProvider>
+        </MantineProvider>
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -59,11 +75,16 @@ export default function App() {
     });
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
 
       if (event === 'SIGNED_IN' && session) {
-        console.log('✅ User signed in successfully:', session.user.email);
+        console.log(
+          '✅ User signed in successfully:',
+          session.user.email
+        );
       }
     });
 
@@ -76,15 +97,15 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
+  let message = 'Oops!';
+  let details = 'An unexpected error occurred.';
   let stack: string | undefined;
 
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
+    message = error.status === 404 ? '404' : 'Error';
     details =
       error.status === 404
-        ? "The requested page could not be found."
+        ? 'The requested page could not be found.'
         : error.statusText || details;
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message;
