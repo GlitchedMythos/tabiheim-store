@@ -1,3 +1,4 @@
+import { Button } from '@mantine/core';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Route } from './+types/counter';
@@ -163,13 +164,14 @@ export default function Counter() {
 
           {/* Control Buttons */}
           <div className="flex gap-4">
-            <button
+            {/* <button
               onClick={handleDecrement}
               disabled={isUpdating}
               className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white font-semibold py-4 px-6 rounded-xl transition-colors duration-200 text-lg shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
             >
               - Decrease
-            </button>
+            </button> */}
+            <Button onClick={handleDecrement} disabled={isUpdating}>- Decrease</Button>
             <button
               onClick={handleIncrement}
               disabled={isUpdating}
