@@ -98,6 +98,92 @@ export async function signInWithMagicLink(email: string): Promise<AuthResult> {
 }
 
 /**
+ * Verify the OTP code sent to the user's email
+ *
+ * This function verifies the one-time password (OTP) code that was sent to the user's
+ * email address. Once verified, it creates an authenticated session for the user.
+ *
+ * Flow:
+ * 1. User receives OTP code in their email (6-digit code)
+ * 2. User enters the code in the verification form
+ * 3. This function verifies the code with Supabase Auth
+ * 4. If valid, user is signed in and session is created
+ * 5. Session is stored in localStorage for persistence
+ *
+ * @param email - The user's email address
+ * @param token - The 6-digit OTP code from the email
+ * @returns Promise with success status and optional error message
+ *
+ * @example
+ * ```tsx
+ * const result = await verifyOtp('user@example.com', '123456');
+ * if (result.success) {
+ *   console.log('Successfully verified! User is now signed in.');
+ * } else {
+ *   console.error('Verification failed:', result.error);
+ * }
+ * ```
+ *
+ * @remarks
+ * - The OTP code expires after a short time (typically 5-10 minutes)
+ * - Each code can only be used once
+ * - After 3-5 failed attempts, the code may be invalidated for security
+ */
+export async function verifyOtp(email: string, token: string): Promise<AuthResult> {
+  try {
+    // Validate inputs
+    if (!email || !email.includes('@')) {
+      return {
+        success: false,
+        error: 'Please enter a valid email address',
+      };
+    }
+
+    if (!token || token.length !== 6) {
+      return {
+        success: false,
+        error: 'Please enter a valid 6-digit code',
+      };
+    }
+
+    // Verify OTP code via Supabase Auth
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'email',
+    });
+
+    if (error) {
+      console.error('OTP verification error:', error);
+
+      // Provide more user-friendly error messages
+      let errorMessage = error.message;
+      if (error.message.toLowerCase().includes('expired')) {
+        errorMessage = 'This code has expired. Please request a new one.';
+      } else if (error.message.toLowerCase().includes('invalid')) {
+        errorMessage = 'Invalid code. Please check and try again.';
+      }
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Successfully verified! You are now signed in.',
+    };
+  } catch (error) {
+    console.error('Unexpected error verifying OTP:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred',
+    };
+  }
+}
+
+/**
  * Sign out the current user
  *
  * This function:
