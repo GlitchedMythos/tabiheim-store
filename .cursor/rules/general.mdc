@@ -1,0 +1,176 @@
+---
+description: General project guidelines and monorepo structure
+globs: ['**/*']
+alwaysApply: true
+---
+
+# Tabiheim Games - General Project Rules
+
+## Project Context
+
+This is a **pnpm monorepo** with the following structure:
+- `apps/api` - Hono backend on Cloudflare Workers
+- `apps/web` - React SPA on Cloudflare Pages
+- `libs/` - Shared code (only extract when truly needed)
+
+**Critical**: Do NOT prematurely extract code into `libs/`. Keep code in the appropriate app until there's clear duplication across multiple apps and a stable abstraction emerges.
+
+## Tech Stack Summary
+
+### Backend (apps/api)
+- Framework: Hono (ultrafast web framework for Cloudflare Workers)
+- Runtime: Cloudflare Workers (edge serverless)
+- ORM: Drizzle ORM (type-safe, lightweight)
+- Database: Neon Postgres (serverless)
+- Auth: Better-Auth with Drizzle adapter
+
+### Frontend (apps/web)
+- Framework: React 18+ (SPA)
+- Build Tool: Vite
+- Deployment: Cloudflare Pages
+- Auth Client: Better-Auth client
+
+## TypeScript Standards
+
+1. **Strict Mode**: Always use strict TypeScript settings
+2. **Type Inference**: Leverage framework-specific type inference (Hono, Drizzle, React)
+3. **No `any`**: Avoid `any` types; use `unknown` or proper types
+4. **Explicit Return Types**: Use explicit return types for public APIs and complex functions
+5. **Import Types**: Use `import type` for type-only imports
+
+Example:
+```typescript
+import type { User } from './types';
+
+export function getUser(id: string): Promise<User | null> {
+  // implementation
+}
+```
+
+## Code Organization
+
+### File Naming
+- **Components**: PascalCase (`UserProfile.tsx`)
+- **Utilities**: camelCase (`formatDate.ts`)
+- **Routes/Pages**: kebab-case (`/api/auth/magic-link`)
+- **Config files**: lowercase (`drizzle.config.ts`, `wrangler.toml`)
+- **Types**: camelCase with `.types.ts` suffix (`user.types.ts`)
+
+### Import Order
+1. External dependencies (React, Hono, etc.)
+2. Internal aliases (`@/lib`, `@/components`)
+3. Relative imports (`./`, `../`)
+4. Type imports (separate `import type` statements)
+
+### Directory Structure Conventions
+```
+apps/[app-name]/
+├── src/
+│   ├── index.ts          # Entry point
+│   ├── config/           # Configuration files
+│   ├── lib/              # Utility functions
+│   ├── types/            # Type definitions
+│   └── [feature]/        # Feature-based directories
+│       ├── [feature].ts
+│       ├── [feature].types.ts
+│       └── [feature].test.ts
+```
+
+## Common Project-Wide Patterns
+
+### Error Handling
+- Use custom error classes for domain-specific errors
+- Always include error context (user ID, resource ID, etc.)
+- Log errors with appropriate severity levels
+- Never expose internal error details to clients
+
+### Environment Variables
+- Never commit secrets
+- Use `.env.example` files to document required variables
+- Validate environment variables at startup
+- Use type-safe env variable access
+
+### Testing
+- **Unit Tests**: Test individual functions and components
+- **Integration Tests**: Test API endpoints and database interactions
+- **E2E Tests**: Test critical user flows
+- Use Vitest for testing (both frontend and backend)
+
+### Documentation
+When creating new features:
+1. Update relevant section in README.md
+2. Add inline comments for complex logic
+3. Document public APIs with JSDoc
+4. Update rules files if introducing new patterns
+
+## Security Best Practices
+
+1. **Secrets Management**: Use platform-specific secret stores (Wrangler secrets, Cloudflare Pages env vars)
+2. **Input Validation**: Validate all user input using Zod or similar
+3. **CORS**: Explicitly configure allowed origins (never use `*` in production)
+4. **Rate Limiting**: Implement rate limiting for public endpoints
+5. **SQL Injection**: Always use ORM query builders (Drizzle protects against this)
+6. **XSS Prevention**: Sanitize user input, use React's built-in XSS protection
+7. **Authentication**: Use Better-Auth; don't implement custom auth logic
+
+## Performance Considerations
+
+1. **Bundle Size**: Keep dependencies minimal for faster cold starts
+2. **Code Splitting**: Lazy load components and routes where appropriate
+3. **Caching**: Use appropriate caching strategies (HTTP headers, Cache API)
+4. **Database Queries**: Optimize queries, use indexes, avoid N+1 queries
+5. **Edge Performance**: Code runs globally at the edge; minimize external API calls
+
+## Common Pitfalls to Avoid
+
+1. **Premature Optimization**: Keep code simple until performance issues arise
+2. **Premature Abstraction**: Don't extract to `libs/` until duplication is clear
+3. **Inconsistent Naming**: Follow the naming conventions strictly
+4. **Missing Error Handling**: Always handle errors appropriately
+5. **Tight Coupling**: Keep modules loosely coupled and independently testable
+
+## AI Assistant Guidance
+
+When helping with this project:
+1. **Respect monorepo structure**: Don't suggest moving code to `libs/` unless truly necessary
+2. **Type safety first**: Leverage TypeScript's type system fully
+3. **Follow established patterns**: Use patterns defined in the rules files
+4. **Consider serverless constraints**: Cold starts, execution time limits, stateless execution
+5. **Security conscious**: Always consider security implications
+6. **Test coverage**: Suggest tests for new features
+7. **Documentation**: Remind to update docs when adding features
+8. **Cross-reference rules**: Reference backend/frontend/database-specific rules as needed
+
+## Useful Commands
+
+```bash
+# Root level
+pnpm install              # Install all dependencies
+pnpm run lint             # Run ESLint across all apps
+pnpm run format           # Run Prettier across all apps
+pnpm run type-check       # TypeScript type checking
+pnpm run test             # Run all tests
+
+# Development (run from root or specific app)
+pnpm --filter api dev     # Start API dev server
+pnpm --filter web dev     # Start web dev server
+
+# Deployment (run from specific app directory)
+cd apps/api && pnpm run deploy       # Deploy API
+cd apps/web && pnpm run deploy       # Deploy web
+```
+
+## Additional Context
+
+For more specific guidance, refer to:
+- `backend.mdc` - Hono, Cloudflare Workers, Better-Auth server patterns
+- `frontend.mdc` - React, Vite, Better-Auth client patterns
+- `database.mdc` - Drizzle ORM, migrations, schema design
+
+## References
+
+- [Hono Docs](https://hono.dev)
+- [Better-Auth Docs](https://www.better-auth.com/)
+- [Drizzle ORM Docs](https://orm.drizzle.team/)
+- [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/)
+- [Neon Docs](https://neon.tech/docs)

@@ -1,0 +1,635 @@
+---
+description: Frontend rules for React SPA on Cloudflare Pages
+globs: ['apps/web/**/*']
+alwaysApply: false
+---
+
+# Frontend Rules - React SPA on Cloudflare Pages
+
+## Context
+Rules specific to the frontend application (`apps/web`), which is a React SPA built with Vite and deployed to Cloudflare Pages.
+
+## React Patterns
+
+### Component Structure
+
+Use functional components with hooks:
+
+```typescript
+import { useState, useEffect } from 'react';
+import type { User } from '@/types';
+
+interface UserProfileProps {
+  userId: string;
+}
+
+export function UserProfile({ userId }: UserProfileProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUser(userId);
+  }, [userId]);
+
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <div>User not found</div>;
+
+  return (
+    <div>
+      <h1>{user.name}</h1>
+      {/* ... */}
+    </div>
+  );
+}
+```
+
+### File Organization
+
+```
+src/
+├── main.tsx                 # App entry point
+├── App.tsx                  # Root component
+├── auth.ts                  # Better-Auth client
+├── components/              # Reusable components
+│   ├── ui/                 # UI primitives (buttons, inputs, etc.)
+│   └── [feature]/          # Feature-specific components
+├── pages/                   # Page components (routes)
+├── hooks/                   # Custom React hooks
+├── lib/                     # Utility functions
+├── types/                   # TypeScript types
+└── styles/                  # Global styles
+```
+
+### Component Naming
+
+- **Files**: PascalCase matching component name (`UserProfile.tsx`)
+- **Components**: PascalCase (`UserProfile`)
+- **Hooks**: camelCase with `use` prefix (`useAuth`, `useUser`)
+- **Utilities**: camelCase (`formatDate`, `validateEmail`)
+
+## Vite Configuration
+
+### Environment Variables
+
+Use `import.meta.env` for environment variables (NOT `process.env`):
+
+```typescript
+// ✅ Correct
+const apiUrl = import.meta.env.VITE_API_URL;
+
+// ❌ Wrong - process.env doesn't work in Vite
+const apiUrl = process.env.VITE_API_URL;
+```
+
+All client-side environment variables must be prefixed with `VITE_`:
+- `VITE_API_URL`
+- `VITE_CLOUDFLARE_IMAGES_URL`
+
+### Path Aliases
+
+Configure path aliases in `vite.config.ts`:
+
+```typescript
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+});
+```
+
+Usage:
+```typescript
+import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/hooks/useAuth';
+```
+
+## Better-Auth Client
+
+### Client Setup
+
+Configure Better-Auth client in `src/auth.ts`:
+
+```typescript
+import { createAuthClient } from "better-auth/client";
+import { adminClient, organizationClient, magicLinkClient } from "better-auth/client/plugins";
+
+export const authClient = createAuthClient({
+  baseURL: import.meta.env.VITE_API_URL,
+
+  plugins: [
+    adminClient(),
+    organizationClient(),
+    magicLinkClient(),
+  ],
+});
+```
+
+### Auth Hook
+
+Create a custom hook for auth state:
+
+```typescript
+// hooks/useAuth.ts
+import { useState, useEffect } from 'react';
+import { authClient } from '@/auth';
+import type { User, Session } from '@/types';
+
+export function useAuth() {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  async function checkSession() {
+    try {
+      const session = await authClient.getSession();
+      setSession(session);
+      setUser(session?.user ?? null);
+    } catch (error) {
+      console.error('Failed to get session:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function signOut() {
+    await authClient.signOut();
+    setUser(null);
+    setSession(null);
+  }
+
+  return {
+    user,
+    session,
+    loading,
+    isAuthenticated: !!user,
+    signOut,
+    refetch: checkSession,
+  };
+}
+```
+
+### Magic Link Sign-In
+
+```typescript
+// components/auth/SignInForm.tsx
+import { useState } from 'react';
+import { authClient } from '@/auth';
+
+export function SignInForm() {
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    try {
+      await authClient.signIn.magicLink({
+        email,
+        callbackURL: '/dashboard',
+      });
+      setSent(true);
+    } catch (err) {
+      setError('Failed to send magic link. Please try again.');
+    }
+  }
+
+  if (sent) {
+    return <div>Check your email for the magic link!</div>;
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Email address"
+        required
+      />
+      <button type="submit">Send Magic Link</button>
+      {error && <div className="error">{error}</div>}
+    </form>
+  );
+}
+```
+
+### Organization Context
+
+```typescript
+// hooks/useOrganization.ts
+import { useState, useEffect } from 'react';
+import { authClient } from '@/auth';
+import type { Organization } from '@/types';
+
+export function useOrganization() {
+  const [activeOrg, setActiveOrg] = useState<Organization | null>(null);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+
+  useEffect(() => {
+    fetchOrganizations();
+  }, []);
+
+  async function fetchOrganizations() {
+    const orgs = await authClient.organization.list();
+    setOrganizations(orgs);
+    if (orgs.length > 0) {
+      setActiveOrg(orgs[0]);
+    }
+  }
+
+  async function switchOrganization(orgId: string) {
+    await authClient.organization.setActive({ organizationId: orgId });
+    const org = organizations.find(o => o.id === orgId);
+    setActiveOrg(org ?? null);
+  }
+
+  return {
+    activeOrg,
+    organizations,
+    switchOrganization,
+    refetch: fetchOrganizations,
+  };
+}
+```
+
+## Routing
+
+Use React Router for client-side routing:
+
+```typescript
+// App.tsx
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { HomePage } from '@/pages/HomePage';
+import { DashboardPage } from '@/pages/DashboardPage';
+import { SignInPage } from '@/pages/SignInPage';
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) return <div>Loading...</div>;
+  if (!isAuthenticated) return <Navigate to="/sign-in" />;
+
+  return <>{children}</>;
+}
+
+export function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/sign-in" element={<SignInPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+```
+
+## State Management
+
+### Local State
+
+Use `useState` for component-local state:
+
+```typescript
+const [count, setCount] = useState(0);
+const [user, setUser] = useState<User | null>(null);
+```
+
+### Global State (if needed)
+
+For complex global state, consider:
+1. **Context API** - For auth, theme, etc.
+2. **Zustand** - For more complex state management (lightweight)
+3. **TanStack Query** - For server state management (recommended for API calls)
+
+Example with Context:
+
+```typescript
+// contexts/AuthContext.tsx
+import { createContext, useContext, ReactNode } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+}
+
+export function useAuthContext() {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuthContext must be used within AuthProvider');
+  return context;
+}
+```
+
+## API Calls
+
+### Using Better-Auth Client
+
+For auth-related calls:
+
+```typescript
+import { authClient } from '@/auth';
+
+// Sign in with magic link
+await authClient.signIn.magicLink({ email: 'user@example.com' });
+
+// Get session
+const session = await authClient.getSession();
+
+// Organization operations
+const orgs = await authClient.organization.list();
+await authClient.organization.create({ name: 'My Org' });
+```
+
+### Custom API Calls
+
+For non-auth API calls:
+
+```typescript
+// lib/api.ts
+const API_URL = import.meta.env.VITE_API_URL;
+
+export async function apiCall<T>(
+  endpoint: string,
+  options?: RequestInit
+): Promise<T> {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+    credentials: 'include', // Include cookies
+  });
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Usage
+const user = await apiCall<User>('/api/users/123');
+```
+
+## Form Handling
+
+### Controlled Components
+
+```typescript
+function ContactForm() {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    message: '',
+  });
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await submitForm(formData);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="name" value={formData.name} onChange={handleChange} />
+      <input name="email" value={formData.email} onChange={handleChange} />
+      <textarea name="message" value={formData.message} onChange={handleChange} />
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+```
+
+### Form Validation
+
+Use Zod for form validation:
+
+```typescript
+import { z } from 'zod';
+
+const formSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  message: z.string().min(10, 'Message must be at least 10 characters'),
+});
+
+function validateForm(data: unknown) {
+  const result = formSchema.safeParse(data);
+  if (!result.success) {
+    return { errors: result.error.flatten().fieldErrors };
+  }
+  return { data: result.data };
+}
+```
+
+## Error Handling
+
+### Error Boundaries
+
+```typescript
+import { Component, ReactNode } from 'react';
+
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error?: Error;
+}
+
+export class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || <div>Something went wrong.</div>;
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+## Performance Optimization
+
+### Lazy Loading
+
+```typescript
+import { lazy, Suspense } from 'react';
+
+const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
+
+function App() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DashboardPage />
+    </Suspense>
+  );
+}
+```
+
+### Memoization
+
+```typescript
+import { useMemo, useCallback } from 'react';
+
+function ExpensiveComponent({ data }: { data: any[] }) {
+  // Memoize expensive computations
+  const processedData = useMemo(() => {
+    return data.map(item => expensiveOperation(item));
+  }, [data]);
+
+  // Memoize callbacks
+  const handleClick = useCallback(() => {
+    console.log('Clicked');
+  }, []);
+
+  return <div>{/* render */}</div>;
+}
+```
+
+## Styling
+
+### CSS Modules (recommended)
+
+```typescript
+// UserProfile.module.css
+.container {
+  padding: 1rem;
+}
+
+.title {
+  font-size: 2rem;
+}
+
+// UserProfile.tsx
+import styles from './UserProfile.module.css';
+
+export function UserProfile() {
+  return (
+    <div className={styles.container}>
+      <h1 className={styles.title}>Profile</h1>
+    </div>
+  );
+}
+```
+
+### Tailwind CSS (alternative)
+
+If using Tailwind, use utility classes:
+
+```typescript
+export function UserProfile() {
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold">Profile</h1>
+    </div>
+  );
+}
+```
+
+## Testing
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { UserProfile } from './UserProfile';
+
+describe('UserProfile', () => {
+  it('renders user name', () => {
+    render(<UserProfile userId="123" />);
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+  });
+
+  it('handles button click', () => {
+    render(<UserProfile userId="123" />);
+    const button = screen.getByRole('button');
+    fireEvent.click(button);
+    // Assert behavior
+  });
+});
+```
+
+## Deployment
+
+### Build
+
+```bash
+cd apps/web
+pnpm run build
+```
+
+### Deploy to Cloudflare Pages
+
+```bash
+pnpm run deploy
+```
+
+### Environment Variables
+
+Set in Cloudflare Pages dashboard:
+- `VITE_API_URL` - API base URL
+- `VITE_CLOUDFLARE_IMAGES_URL` - Images URL
+
+## Common Pitfalls
+
+1. ❌ Using `process.env` instead of `import.meta.env`
+2. ❌ Not prefixing env vars with `VITE_`
+3. ❌ Forgetting to include credentials in API calls
+4. ❌ Not handling loading and error states
+5. ❌ Not memoizing expensive computations
+6. ❌ Over-using global state (prefer local state when possible)
+7. ❌ Not using TypeScript types for props and state
+
+## Resources
+
+- [React Documentation](https://react.dev)
+- [Vite Documentation](https://vitejs.dev)
+- [React Router](https://reactrouter.com)
+- [Better-Auth Client](https://www.better-auth.com/)
+- [Cloudflare Pages](https://pages.cloudflare.com/)

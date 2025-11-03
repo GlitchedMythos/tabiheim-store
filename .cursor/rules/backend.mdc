@@ -1,0 +1,439 @@
+---
+description: Backend API rules for Hono on Cloudflare Workers
+globs: ['apps/api/**/*']
+alwaysApply: false
+---
+
+# Backend Rules - Hono on Cloudflare Workers
+
+## Context
+Rules specific to the backend API (`apps/api`), which uses Hono on Cloudflare Workers with Drizzle ORM and Better-Auth.
+
+## Hono Patterns
+
+### Environment Variables
+**Critical**: Always access environment variables via `c.env`, NEVER `process.env`
+
+```typescript
+// ✅ Correct
+app.get('/api', (c) => {
+  const dbUrl = c.env.DATABASE_URL;
+})
+
+// ❌ Wrong - process.env is not available in Workers
+app.get('/api', (c) => {
+  const dbUrl = process.env.DATABASE_URL;
+})
+```
+
+### Type-Safe Bindings
+Define types for all environment bindings:
+
+```typescript
+type Bindings = {
+  DATABASE_URL: string;
+  BETTER_AUTH_SECRET: string;
+  CLOUDFLARE_IMAGES_TOKEN: string;
+  MY_KV: KVNamespace;
+  MY_BUCKET: R2Bucket;
+}
+
+type Variables = {
+  user: User;
+  db: DrizzleDB;
+}
+
+const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+```
+
+### Route Handlers
+
+1. **Return Early**: Use early returns for error cases
+2. **Type Safety**: Leverage Hono's type inference for params, query, body
+3. **Consistent Responses**: Use consistent response formats
+
+```typescript
+app.get('/users/:id', async (c) => {
+  const id = c.req.param('id');
+
+  const user = await db.select()
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1);
+
+  if (!user[0]) {
+    return c.json({ error: 'User not found' }, 404);
+  }
+
+  return c.json({ user: user[0] });
+});
+```
+
+### Middleware
+
+1. **Reusable Middleware**: Create middleware for common tasks (auth, logging, rate limiting)
+2. **Middleware Order**: Apply middleware in the correct order (CORS → Auth → Routes)
+
+```typescript
+// CORS first
+app.use('/*', cors({
+  origin: [c.env.WEB_URL],
+  credentials: true,
+}));
+
+// Auth middleware
+app.use('/api/*', async (c, next) => {
+  const session = await getSession(c);
+  if (!session) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  c.set('user', session.user);
+  await next();
+});
+
+// Routes
+app.get('/api/profile', async (c) => {
+  const user = c.get('user');
+  return c.json({ user });
+});
+```
+
+## Cloudflare Workers Specifics
+
+### Required Configuration
+Always include in `wrangler.toml`:
+
+```toml
+compatibility_flags = ["nodejs_compat"]
+compatibility_date = "2024-09-23"
+```
+
+**Why**: Better-Auth requires AsyncLocalStorage support, which needs `nodejs_compat`.
+
+### Module Worker Syntax
+Use modern module worker syntax (NOT Service Worker syntax):
+
+```typescript
+// ✅ Correct - Module worker
+export default app;
+
+// Or with additional handlers
+export default {
+  fetch: app.fetch,
+  scheduled: async (event, env, ctx) => {
+    // Scheduled tasks
+  },
+};
+```
+
+### ExecutionContext
+For background tasks that shouldn't block the response:
+
+```typescript
+app.get('/api/action', async (c) => {
+  // Do work that affects the response
+  const result = await doWork();
+
+  // Schedule background work (logging, analytics, etc.)
+  c.executionCtx.waitUntil(
+    logAnalytics(result)
+  );
+
+  return c.json({ result });
+});
+```
+
+### Cloudflare Bindings
+
+Access Workers bindings via `c.env`:
+
+```typescript
+// KV
+await c.env.MY_KV.get('key');
+await c.env.MY_KV.put('key', 'value');
+
+// R2
+await c.env.MY_BUCKET.put('file.txt', data);
+const file = await c.env.MY_BUCKET.get('file.txt');
+
+// D1 (if using)
+const result = await c.env.DB.prepare('SELECT * FROM users').all();
+
+// Durable Objects
+const id = c.env.MY_DURABLE_OBJECT.idFromName('name');
+const stub = c.env.MY_DURABLE_OBJECT.get(id);
+```
+
+## Better-Auth Server Configuration
+
+### Use Drizzle Adapter
+Always use the Drizzle adapter (NOT raw Postgres adapter):
+
+```typescript
+import { betterAuth } from "better-auth";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+
+// ✅ Correct - Drizzle adapter
+const sql = neon(c.env.DATABASE_URL);
+const db = drizzle(sql);
+
+export const auth = betterAuth({
+  database: db,
+  // ...
+});
+
+// ❌ Wrong - Raw Postgres adapter
+import { Pool } from 'pg';
+export const auth = betterAuth({
+  database: new Pool({ connectionString: c.env.DATABASE_URL }),
+});
+```
+
+### Plugin Configuration
+
+Enable all three required plugins:
+
+```typescript
+import { betterAuth } from "better-auth";
+import { admin, organization, magicLink } from "better-auth/plugins";
+
+export const auth = betterAuth({
+  database: db,
+
+  emailAndPassword: {
+    enabled: false, // Using magic link instead
+  },
+
+  plugins: [
+    // Admin plugin - user management
+    admin(),
+
+    // Organization plugin - multi-tenant with RBAC
+    organization({
+      roles: {
+        owner: ['*'], // All permissions
+        admin: ['create', 'read', 'update', 'delete'],
+        member: ['read', 'update'],
+      },
+    }),
+
+    // Magic Link plugin - passwordless auth
+    magicLink({
+      async sendMagicLink({ email, url, token }) {
+        // Implement email sending
+        await sendEmail({
+          to: email,
+          subject: "Sign in to Tabiheim Games",
+          html: `Click here to sign in: ${url}`,
+        });
+      },
+      expiresIn: 300, // 5 minutes
+      disableSignUp: false,
+    }),
+  ],
+});
+```
+
+### Auth Middleware
+
+Protect routes with auth middleware:
+
+```typescript
+import { auth } from './auth';
+
+// Middleware to require authentication
+const requireAuth = async (c: Context, next: Next) => {
+  const session = await auth.api.getSession({
+    headers: c.req.raw.headers,
+  });
+
+  if (!session) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  c.set('user', session.user);
+  c.set('session', session);
+  await next();
+};
+
+// Middleware to require specific organization role
+const requireOrgRole = (roles: string[]) => {
+  return async (c: Context, next: Next) => {
+    const session = c.get('session');
+    const orgId = c.req.header('x-organization-id');
+
+    const member = await auth.api.getOrganizationMember({
+      organizationId: orgId,
+      userId: session.user.id,
+    });
+
+    if (!member || !roles.includes(member.role)) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
+    await next();
+  };
+};
+
+// Usage
+app.use('/api/admin/*', requireAuth);
+app.use('/api/org/:id/settings', requireAuth, requireOrgRole(['owner', 'admin']));
+```
+
+## Error Handling
+
+### Global Error Handler
+
+```typescript
+app.onError((err, c) => {
+  console.error('Error:', err);
+
+  // Don't expose internal errors to clients
+  if (err instanceof ValidationError) {
+    return c.json({ error: err.message, fields: err.fields }, 400);
+  }
+
+  if (err instanceof NotFoundError) {
+    return c.json({ error: 'Resource not found' }, 404);
+  }
+
+  if (err instanceof UnauthorizedError) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  // Generic error response
+  return c.json({ error: 'Internal server error' }, 500);
+});
+```
+
+### Custom Error Classes
+
+```typescript
+export class ValidationError extends Error {
+  constructor(message: string, public fields: Record<string, string>) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+export class NotFoundError extends Error {
+  constructor(resource: string) {
+    super(`${resource} not found`);
+    this.name = 'NotFoundError';
+  }
+}
+```
+
+## Request Validation
+
+Use Zod for request validation:
+
+```typescript
+import { z } from 'zod';
+
+const createUserSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(2).max(100),
+});
+
+app.post('/users', async (c) => {
+  const body = await c.req.json();
+
+  const result = createUserSchema.safeParse(body);
+  if (!result.success) {
+    return c.json({
+      error: 'Validation failed',
+      issues: result.error.issues
+    }, 400);
+  }
+
+  const user = await createUser(result.data);
+  return c.json({ user }, 201);
+});
+```
+
+## Performance Optimization
+
+1. **Minimize Bundle Size**: Keep dependencies small (critical for cold starts)
+2. **Lazy Load**: Use dynamic imports for large dependencies
+3. **Caching**: Leverage Cache API for appropriate responses
+4. **Connection Pooling**: Use Neon's serverless driver (no pooling needed)
+
+```typescript
+// Cache GET responses
+import { cache } from 'hono/cache';
+
+app.get(
+  '/api/public/data',
+  cache({
+    cacheName: 'api-cache',
+    cacheControl: 'max-age=3600',
+  }),
+  async (c) => {
+    const data = await fetchData();
+    return c.json(data);
+  }
+);
+```
+
+## Testing
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import app from './index';
+
+describe('API Tests', () => {
+  it('should return 200 for health check', async () => {
+    const res = await app.request('/health');
+    expect(res.status).toBe(200);
+  });
+
+  it('should require auth for protected route', async () => {
+    const res = await app.request('/api/profile');
+    expect(res.status).toBe(401);
+  });
+
+  // Mock environment bindings
+  it('should access environment variables', async () => {
+    const MOCK_ENV = {
+      DATABASE_URL: 'postgresql://test',
+    };
+
+    const res = await app.request('/api/data', {}, MOCK_ENV);
+    expect(res.status).toBe(200);
+  });
+});
+```
+
+## Deployment
+
+```bash
+# Deploy to production
+cd apps/api
+pnpm run deploy
+
+# Set secrets
+pnpm wrangler secret put DATABASE_URL
+pnpm wrangler secret put BETTER_AUTH_SECRET
+
+# View logs
+pnpm wrangler tail
+```
+
+## Common Pitfalls
+
+1. ❌ Using `process.env` instead of `c.env`
+2. ❌ Using Node.js APIs (most are not available)
+3. ❌ Forgetting `nodejs_compat` flag for Better-Auth
+4. ❌ Using raw Postgres adapter instead of Drizzle adapter
+5. ❌ Blocking responses with long-running tasks (use `waitUntil`)
+6. ❌ Not handling errors properly
+7. ❌ Exposing internal error details to clients
+
+## Resources
+
+- [Hono Documentation](https://hono.dev)
+- [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/)
+- [Better-Auth Docs](https://www.better-auth.com/)
+- [Hono + Cloudflare Workers Guide](https://hono.dev/docs/getting-started/cloudflare-workers)

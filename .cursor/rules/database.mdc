@@ -1,0 +1,595 @@
+---
+description: Database rules for Drizzle ORM with Neon Postgres
+globs: ['apps/api/src/db/**/*', '**/drizzle.config.ts', '**/schema.ts']
+alwaysApply: false
+---
+
+# Database Rules - Drizzle ORM with Neon Postgres
+
+## Context
+Rules specific to database operations using Drizzle ORM with Neon Postgres serverless database.
+
+## Database Architecture
+
+### Neon Serverless Driver
+
+Use `@neondatabase/serverless` for optimal performance on Cloudflare Workers:
+
+```typescript
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
+
+const sql = neon(process.env.DATABASE_URL!);
+const db = drizzle(sql);
+```
+
+**Why**: Neon's serverless driver is optimized for serverless environments with instant connections and no connection pooling overhead.
+
+### Connection Management
+
+- **No Connection Pooling**: Neon's serverless driver doesn't require connection pooling
+- **Instant Connections**: Each query creates a new HTTP connection (optimized for serverless)
+- **No Connection Limits**: Works well with high concurrency in serverless environments
+
+## Drizzle Configuration
+
+### Configuration File
+
+Create `drizzle.config.ts` in the API root:
+
+```typescript
+import type { Config } from 'drizzle-kit';
+
+export default {
+  schema: './src/db/schema.ts',
+  out: './drizzle',
+  driver: 'pg',
+  dbCredentials: {
+    connectionString: process.env.DATABASE_URL!,
+  },
+  verbose: true,
+  strict: true,
+} satisfies Config;
+```
+
+## Schema Design
+
+### Schema Organization
+
+Organize schemas in `src/db/schema.ts`:
+
+```typescript
+// src/db/schema.ts
+import { pgTable, serial, text, timestamp, boolean, integer } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
+
+// Users table
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  name: text('name').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Organizations table
+export const organizations = pgTable('organizations', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Organization members junction table
+export const organizationMembers = pgTable('organization_members', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  organizationId: integer('organization_id').notNull().references(() => organizations.id),
+  role: text('role').notNull(), // 'owner', 'admin', 'member'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  organizationMemberships: many(organizationMembers),
+}));
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  members: many(organizationMembers),
+}));
+
+export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
+  user: one(users, {
+    fields: [organizationMembers.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [organizationMembers.organizationId],
+    references: [organizations.id],
+  }),
+}));
+```
+
+### Naming Conventions
+
+1. **Tables**: Lowercase, plural (`users`, `organizations`)
+2. **Columns**: Snake_case (`created_at`, `user_id`)
+3. **Foreign Keys**: `{table}_id` format (`user_id`, `organization_id`)
+4. **Indexes**: `{table}_{column}_idx` format
+5. **Constraints**: `{table}_{column}_key` format for unique constraints
+
+### Type Inference
+
+Let Drizzle infer types from schema:
+
+```typescript
+import { users } from './schema';
+
+// Infer types for selecting (reading)
+export type User = typeof users.$inferSelect;
+
+// Infer types for inserting (creating)
+export type NewUser = typeof users.$inferInsert;
+
+// Use in functions
+export async function createUser(user: NewUser): Promise<User> {
+  const result = await db.insert(users).values(user).returning();
+  return result[0];
+}
+```
+
+## Queries
+
+### Basic Queries
+
+```typescript
+import { eq, and, or, like, gt, lt, desc, asc } from 'drizzle-orm';
+import { users } from './schema';
+
+// Select all
+const allUsers = await db.select().from(users);
+
+// Select with where clause
+const user = await db
+  .select()
+  .from(users)
+  .where(eq(users.email, 'user@example.com'))
+  .limit(1);
+
+// Select specific fields
+const userNames = await db
+  .select({ id: users.id, name: users.name })
+  .from(users);
+
+// Complex where conditions
+const filteredUsers = await db
+  .select()
+  .from(users)
+  .where(
+    and(
+      like(users.name, '%John%'),
+      gt(users.createdAt, new Date('2024-01-01'))
+    )
+  );
+
+// Ordering
+const sortedUsers = await db
+  .select()
+  .from(users)
+  .orderBy(desc(users.createdAt));
+
+// Pagination
+const page = 1;
+const pageSize = 10;
+const paginatedUsers = await db
+  .select()
+  .from(users)
+  .limit(pageSize)
+  .offset((page - 1) * pageSize);
+```
+
+### Joins
+
+```typescript
+import { users, organizationMembers, organizations } from './schema';
+
+// Inner join
+const usersWithOrgs = await db
+  .select({
+    user: users,
+    organization: organizations,
+    role: organizationMembers.role,
+  })
+  .from(users)
+  .innerJoin(organizationMembers, eq(organizationMembers.userId, users.id))
+  .innerJoin(organizations, eq(organizations.id, organizationMembers.organizationId));
+
+// Left join
+const allUsersWithOrgs = await db
+  .select()
+  .from(users)
+  .leftJoin(organizationMembers, eq(organizationMembers.userId, users.id));
+```
+
+### Relational Queries
+
+Use Drizzle's relational query API for cleaner joins:
+
+```typescript
+import { db } from './db';
+
+// Query with relations
+const usersWithMemberships = await db.query.users.findMany({
+  with: {
+    organizationMemberships: {
+      with: {
+        organization: true,
+      },
+    },
+  },
+});
+
+// Find first matching
+const user = await db.query.users.findFirst({
+  where: eq(users.email, 'user@example.com'),
+  with: {
+    organizationMemberships: true,
+  },
+});
+```
+
+## Mutations
+
+### Insert
+
+```typescript
+// Insert single record
+const newUser = await db
+  .insert(users)
+  .values({
+    email: 'user@example.com',
+    name: 'John Doe',
+  })
+  .returning();
+
+// Insert multiple records
+const newUsers = await db
+  .insert(users)
+  .values([
+    { email: 'user1@example.com', name: 'User 1' },
+    { email: 'user2@example.com', name: 'User 2' },
+  ])
+  .returning();
+
+// Insert with conflict handling (upsert)
+const upsertedUser = await db
+  .insert(users)
+  .values({ email: 'user@example.com', name: 'John Doe' })
+  .onConflictDoUpdate({
+    target: users.email,
+    set: { name: 'John Doe Updated' },
+  })
+  .returning();
+```
+
+### Update
+
+```typescript
+// Update with where clause
+const updated = await db
+  .update(users)
+  .set({ name: 'John Smith' })
+  .where(eq(users.id, 1))
+  .returning();
+
+// Update multiple records
+await db
+  .update(users)
+  .set({ updatedAt: new Date() })
+  .where(gt(users.createdAt, new Date('2024-01-01')));
+```
+
+### Delete
+
+```typescript
+// Delete with where clause
+await db
+  .delete(users)
+  .where(eq(users.id, 1));
+
+// Delete multiple
+await db
+  .delete(users)
+  .where(lt(users.createdAt, new Date('2024-01-01')));
+
+// Soft delete pattern (recommended)
+export const users = pgTable('users', {
+  // ... other fields
+  deletedAt: timestamp('deleted_at'),
+});
+
+// Soft delete
+await db
+  .update(users)
+  .set({ deletedAt: new Date() })
+  .where(eq(users.id, 1));
+
+// Query only non-deleted
+const activeUsers = await db
+  .select()
+  .from(users)
+  .where(eq(users.deletedAt, null));
+```
+
+## Transactions
+
+Use transactions for operations that must succeed or fail together:
+
+```typescript
+import { db } from './db';
+
+// Transaction
+await db.transaction(async (tx) => {
+  // Create user
+  const user = await tx
+    .insert(users)
+    .values({ email: 'user@example.com', name: 'John' })
+    .returning();
+
+  // Create organization
+  const org = await tx
+    .insert(organizations)
+    .values({ name: 'Acme Corp', slug: 'acme' })
+    .returning();
+
+  // Add user to organization
+  await tx
+    .insert(organizationMembers)
+    .values({
+      userId: user[0].id,
+      organizationId: org[0].id,
+      role: 'owner',
+    });
+
+  // If any of these fail, all will be rolled back
+});
+```
+
+## Migrations
+
+### Generate Migration
+
+```bash
+cd apps/api
+pnpm drizzle-kit generate:pg
+```
+
+This reads your schema and generates SQL migration files in `./drizzle/`.
+
+### Apply Migrations
+
+```bash
+pnpm drizzle-kit push:pg
+```
+
+Or use programmatic migrations:
+
+```typescript
+import { migrate } from 'drizzle-orm/neon-http/migrator';
+
+await migrate(db, { migrationsFolder: './drizzle' });
+```
+
+### Migration Workflow
+
+1. **Update Schema**: Modify `schema.ts`
+2. **Generate Migration**: Run `drizzle-kit generate:pg`
+3. **Review Migration**: Check generated SQL in `./drizzle/`
+4. **Apply Migration**: Run `drizzle-kit push:pg` or deploy with migration script
+5. **Commit**: Commit schema changes and migration files
+
+## Better-Auth Integration
+
+Better-Auth automatically manages its tables when using the Drizzle adapter:
+
+```typescript
+import { betterAuth } from "better-auth";
+import { drizzle } from "drizzle-orm/neon-http";
+
+// Better-Auth will create and manage its own tables
+export const auth = betterAuth({
+  database: drizzle(sql),
+  // ... other config
+});
+```
+
+Better-Auth creates these tables:
+- `user` - User accounts
+- `session` - User sessions
+- `account` - Social auth accounts
+- `verification` - Email verification tokens
+- `organization` - Organizations (if org plugin enabled)
+- `member` - Organization members (if org plugin enabled)
+
+**Important**: Don't define these tables in your schema - Better-Auth manages them.
+
+## Database Best Practices
+
+### Indexes
+
+Add indexes for frequently queried columns:
+
+```typescript
+import { index } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  name: text('name').notNull(),
+}, (table) => ({
+  emailIdx: index('users_email_idx').on(table.email),
+  nameIdx: index('users_name_idx').on(table.name),
+}));
+```
+
+### Timestamps
+
+Always include timestamps:
+
+```typescript
+export const myTable = pgTable('my_table', {
+  id: serial('id').primaryKey(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+```
+
+Consider using a helper:
+
+```typescript
+export const timestamps = {
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+};
+
+// Usage
+export const myTable = pgTable('my_table', {
+  id: serial('id').primaryKey(),
+  ...timestamps,
+});
+```
+
+### Enums
+
+Use Postgres enums for fixed value sets:
+
+```typescript
+import { pgEnum } from 'drizzle-orm/pg-core';
+
+export const roleEnum = pgEnum('role', ['owner', 'admin', 'member']);
+
+export const organizationMembers = pgTable('organization_members', {
+  id: serial('id').primaryKey(),
+  role: roleEnum('role').notNull(),
+});
+```
+
+## Error Handling
+
+### Database Errors
+
+```typescript
+import { DatabaseError } from 'pg';
+
+try {
+  await db.insert(users).values(newUser);
+} catch (error) {
+  if (error instanceof DatabaseError) {
+    // Unique constraint violation
+    if (error.code === '23505') {
+      throw new Error('Email already exists');
+    }
+
+    // Foreign key constraint violation
+    if (error.code === '23503') {
+      throw new Error('Referenced record does not exist');
+    }
+
+    // Not null constraint violation
+    if (error.code === '23502') {
+      throw new Error('Required field is missing');
+    }
+  }
+  throw error;
+}
+```
+
+## Performance Optimization
+
+### Select Only Needed Fields
+
+```typescript
+// ❌ Bad - Fetches all columns
+const users = await db.select().from(users);
+
+// ✅ Good - Only fetches needed columns
+const userNames = await db
+  .select({ id: users.id, name: users.name })
+  .from(users);
+```
+
+### Use Limits
+
+Always limit query results for lists:
+
+```typescript
+// ❌ Bad - Could return millions of rows
+const users = await db.select().from(users);
+
+// ✅ Good - Limits result set
+const users = await db
+  .select()
+  .from(users)
+  .limit(100);
+```
+
+### Avoid N+1 Queries
+
+```typescript
+// ❌ Bad - N+1 query problem
+const users = await db.select().from(users);
+for (const user of users) {
+  const orgs = await db
+    .select()
+    .from(organizationMembers)
+    .where(eq(organizationMembers.userId, user.id));
+}
+
+// ✅ Good - Single query with join
+const usersWithOrgs = await db.query.users.findMany({
+  with: {
+    organizationMemberships: {
+      with: { organization: true },
+    },
+  },
+});
+```
+
+## Testing
+
+### Mock Database
+
+```typescript
+import { vi } from 'vitest';
+
+const mockDb = {
+  select: vi.fn().mockReturnValue({
+    from: vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue([{ id: 1, name: 'Test' }]),
+    }),
+  }),
+};
+```
+
+## Useful Commands
+
+```bash
+# Generate migration
+pnpm drizzle-kit generate:pg
+
+# Apply migration
+pnpm drizzle-kit push:pg
+
+# Open Drizzle Studio (database GUI)
+pnpm drizzle-kit studio
+
+# Introspect existing database
+pnpm drizzle-kit introspect:pg
+```
+
+## Resources
+
+- [Drizzle ORM Documentation](https://orm.drizzle.team/)
+- [Neon Documentation](https://neon.tech/docs)
+- [Drizzle + Neon Guide](https://orm.drizzle.team/docs/get-started-postgresql#neon)
+- [Better-Auth + Drizzle](https://www.better-auth.com/)
