@@ -38,9 +38,9 @@ importers:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.8.31
         version: 0.8.71(@cloudflare/workers-types@4.20251014.0)(@vitest/runner@3.2.4)(@vitest/snapshot@3.2.4)(vitest@3.2.4(@types/node@24.10.0)(tsx@4.20.6)(yaml@2.8.1))
-      '@cloudflare/workers-types':
-        specifier: ^4.20250508.0
-        version: 4.20251014.0
+      '@types/node':
+        specifier: ^24.10.0
+        version: 24.10.0
       drizzle-kit:
         specifier: ^0.31.1
         version: 0.31.6
@@ -1768,7 +1768,8 @@ snapshots:
   '@cloudflare/workerd-windows-64@1.20251011.0':
     optional: true
 
-  '@cloudflare/workers-types@4.20251014.0': {}
+  '@cloudflare/workers-types@4.20251014.0':
+    optional: true
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
