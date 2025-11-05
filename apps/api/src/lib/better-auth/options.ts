@@ -9,7 +9,7 @@ export const betterAuthOptions: BetterAuthOptions = {
   /**
    * The name of the application.
    */
-  appName: 'YOUR_APP_NAME',
+  appName: 'Tabiheim Games',
   /**
    * Base path for Better Auth.
    * @default "/api/auth"
