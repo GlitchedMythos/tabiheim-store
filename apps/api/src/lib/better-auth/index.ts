@@ -2,6 +2,7 @@ import { neon } from '@neondatabase/serverless';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { drizzle } from 'drizzle-orm/neon-http';
+import * as schema from '../../db/schema';
 import { betterAuthOptions } from './options';
 
 /**
@@ -15,7 +16,7 @@ export const auth = (
 
   return betterAuth({
     ...betterAuthOptions,
-    database: drizzleAdapter(db, { provider: 'pg' }),
+    database: drizzleAdapter(db, { provider: 'pg', schema }),
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
 

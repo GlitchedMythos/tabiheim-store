@@ -12,9 +12,15 @@ export const betterAuthOptions: BetterAuthOptions = {
   appName: 'Tabiheim Games',
   /**
    * Base path for Better Auth.
+   * Must match the Hono route mounting: /api/auth/*
    * @default "/api/auth"
    */
-  basePath: '/api',
+  basePath: '/api/auth',
+  /**
+   * Trusted origins for CORS.
+   * Include the frontend URL to allow authentication requests.
+   */
+  trustedOrigins: ['http://localhost:5173', 'http://localhost:8787'],
   emailAndPassword: {
     enabled: true,
   },

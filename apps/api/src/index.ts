@@ -11,7 +11,7 @@ import { dbProvider } from './middleware/dbProvider';
 const api = new Hono()
   .use('*', dbProvider)
   .use(
-    '/api/auth/*', // or replace with "*" to enable cors for all routes
+    '*', // Enable CORS for all API routes (this instance is already mounted at /api)
     cors({
       origin: 'http://localhost:5173', // replace with your origin
       allowHeaders: ['Content-Type', 'Authorization'],
