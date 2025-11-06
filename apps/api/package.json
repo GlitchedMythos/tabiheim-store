@@ -1,5 +1,5 @@
 {
-  "name": "honc-app",
+  "name": "api",
   "scripts": {
     "dev": "wrangler dev src/index.ts",
     "deploy": "wrangler deploy --minify src/index.ts",

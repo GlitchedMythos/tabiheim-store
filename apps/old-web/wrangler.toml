@@ -1,0 +1,25 @@
+name = "tabiheim-games-web"
+compatibility_date = "2024-11-05"
+
+# Cloudflare Pages configuration
+[site]
+bucket = "./dist"
+
+# Build configuration
+[build]
+command = "pnpm run build"
+cwd = "./"
+
+[build.upload]
+format = "directory"
+dir = "./dist"
+
+# Environment variables
+[env.production]
+# Add production environment variables here
+
+[env.preview]
+# Add preview environment variables here
+
+
+
