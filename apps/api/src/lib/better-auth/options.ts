@@ -1,4 +1,5 @@
 import { BetterAuthOptions } from 'better-auth';
+import { admin, magicLink, organization } from 'better-auth/plugins';
 
 /**
  * Custom options for Better Auth
@@ -24,5 +25,16 @@ export const betterAuthOptions: BetterAuthOptions = {
   emailAndPassword: {
     enabled: true,
   },
+  plugins: [
+    admin(),
+    organization(),
+    magicLink({
+      async sendMagicLink({ email, url, token }) {
+        console.log('Sending magic link to', email, url, token);
+      },
+      expiresIn: 300,
+      disableSignUp: false,
+    }),
+  ],
   // .... More options
 };
