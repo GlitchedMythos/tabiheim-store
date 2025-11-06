@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router';
-import { useAuth } from '../hooks/useAuth';
+import { redirect, useNavigate } from 'react-router';
+import { authClient } from '../lib/auth';
 import type { Route } from './+types/dashboard';
 
 export function meta({}: Route.MetaArgs) {
@@ -10,31 +9,30 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export default function Dashboard() {
-  const { user, isAuthenticated, loading, signOut } = useAuth();
-  const navigate = useNavigate();
+/**
+ * Client loader to protect the dashboard route
+ * Checks authentication and redirects to home if not authenticated
+ */
+export async function clientLoader({}: Route.ClientLoaderArgs) {
+  const { data: session } = await authClient.getSession();
 
   // Redirect to home if not authenticated
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      navigate('/');
-    }
-  }, [isAuthenticated, loading, navigate]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-600 text-xl">Loading...</div>
-      </div>
-    );
+  if (!session?.user) {
+    throw redirect('/');
   }
 
-  if (!isAuthenticated || !user) {
-    return null; // Will redirect in useEffect
-  }
+  // Return user data to the component
+  return { user: session.user };
+}
+
+export default function Dashboard({
+  loaderData,
+}: Route.ComponentProps) {
+  const navigate = useNavigate();
+  const { user } = loaderData;
 
   async function handleSignOut() {
-    await signOut();
+    await authClient.signOut();
     navigate('/');
   }
 
@@ -68,7 +66,7 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-6">
-            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg p-6">
+            <div className="bg-linear-to-br from-purple-50 to-indigo-50 rounded-lg p-6">
               <h3 className="text-xl font-semibold text-gray-800 mb-3">
                 👋 Hello World!
               </h3>

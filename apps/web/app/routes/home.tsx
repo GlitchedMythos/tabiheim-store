@@ -32,9 +32,12 @@ export default function Home() {
     setLoading(true);
 
     try {
+      // Use absolute URL for callback to ensure redirect goes to frontend, not API
+      const callbackURL = `${window.location.origin}/dashboard`;
+
       await authClient.signIn.magicLink({
         email,
-        callbackURL: '/dashboard',
+        callbackURL,
       });
       setSent(true);
     } catch (err) {
