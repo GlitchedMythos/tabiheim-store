@@ -1,5 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import {
+  Container,
+  Paper,
+  Title,
+  Text,
+  TextInput,
+  Button,
+  Stack,
+  Center,
+  Alert,
+  Anchor,
+  Loader,
+} from '@mantine/core';
+import { IconMail } from '@tabler/icons-react';
 import { authClient } from '../lib/auth';
 import { useAuth } from '../hooks/useAuth';
 import type { Route } from './+types/home';
@@ -50,98 +64,114 @@ export default function Home() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
+      <Center
+        style={{
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+        }}
+      >
+        <Stack align="center" gap="md">
+          <Loader size="lg" color="white" />
+          <Text c="white" size="xl">Loading...</Text>
+        </Stack>
+      </Center>
     );
   }
 
   if (sent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 p-4">
-        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
-          <div className="text-center">
-            <div className="text-6xl mb-4">📧</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+      <Center
+        style={{
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+          padding: '1rem',
+        }}
+      >
+        <Paper shadow="xl" p="xl" radius="md" style={{ maxWidth: 450, width: '100%' }}>
+          <Stack align="center" gap="md">
+            <Text size="4rem">📧</Text>
+            <Title order={2} ta="center">
               Check Your Email
-            </h2>
-            <p className="text-gray-600 mb-6">
-              We've sent a magic link to <strong>{email}</strong>
-            </p>
-            <p className="text-sm text-gray-500 mb-6">
+            </Title>
+            <Text ta="center" c="dimmed">
+              We've sent a magic link to <Text span fw={700}>{email}</Text>
+            </Text>
+            <Text size="sm" ta="center" c="dimmed">
               Click the link in the email to sign in to your account.
               The link will expire in 5 minutes.
-            </p>
-            <button
+            </Text>
+            <Anchor
+              component="button"
               onClick={() => {
                 setSent(false);
                 setEmail('');
               }}
-              className="text-purple-600 hover:text-purple-700 font-medium"
             >
               Use a different email
-            </button>
-          </div>
-        </div>
-      </div>
+            </Anchor>
+          </Stack>
+        </Paper>
+      </Center>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 p-4">
-      <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            🎮 Tabiheim Games
-          </h1>
-          <p className="text-gray-600">
-            Sign in with your email
-          </p>
-        </div>
+    <Center
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+        padding: '1rem',
+      }}
+    >
+      <Paper shadow="xl" p="xl" radius="md" style={{ maxWidth: 450, width: '100%' }}>
+        <Stack gap="lg">
+          <Stack gap="xs" align="center">
+            <Title order={1} ta="center">
+              🎮 Tabiheim Games
+            </Title>
+            <Text c="dimmed" ta="center">
+              Sign in with your email
+            </Text>
+          </Stack>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Email Address
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              disabled={loading}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-            />
-          </div>
+          <form onSubmit={handleSubmit}>
+            <Stack gap="md">
+              <TextInput
+                label="Email Address"
+                placeholder="you@example.com"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.currentTarget.value)}
+                required
+                disabled={loading}
+                size="md"
+                leftSection={<IconMail size={16} />}
+              />
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
+              {error && (
+                <Alert color="red" title="Error">
+                  {error}
+                </Alert>
+              )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:bg-purple-400 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Sending...' : 'Send Magic Link'}
-          </button>
-        </form>
+              <Button
+                type="submit"
+                size="md"
+                loading={loading}
+                fullWidth
+              >
+                Send Magic Link
+              </Button>
+            </Stack>
+          </form>
 
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>
+          <Text size="sm" c="dimmed" ta="center">
             We'll send you a secure link to sign in.
             <br />
             No password required! 🪄
-          </p>
-        </div>
-      </div>
-    </div>
+          </Text>
+        </Stack>
+      </Paper>
+    </Center>
   );
 }
