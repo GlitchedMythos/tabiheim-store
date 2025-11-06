@@ -1,12 +1,15 @@
 import { BetterAuthOptions } from 'better-auth';
 import { admin, magicLink, organization } from 'better-auth/plugins';
+import { sendMagicLinkEmail } from '../email';
 
 /**
  * Custom options for Better Auth
  *
  * Docs: https://www.better-auth.com/docs/reference/options
  */
-export const betterAuthOptions: BetterAuthOptions = {
+export const getBetterAuthOptions = (
+  env: CloudflareBindings
+): Omit<BetterAuthOptions, 'database' | 'baseURL' | 'secret'> => ({
   /**
    * The name of the application.
    */
@@ -30,11 +33,16 @@ export const betterAuthOptions: BetterAuthOptions = {
     organization(),
     magicLink({
       async sendMagicLink({ email, url, token }) {
-        console.log('Sending magic link to', email, url, token);
+        try {
+          await sendMagicLinkEmail(env, email, url, token);
+        } catch (error) {
+          console.error('Error sending magic link email:', error);
+          throw error;
+        }
       },
       expiresIn: 300,
       disableSignUp: false,
     }),
   ],
   // .... More options
-};
+});

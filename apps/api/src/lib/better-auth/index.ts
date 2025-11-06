@@ -3,7 +3,7 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from '../../db/schema';
-import { betterAuthOptions } from './options';
+import { getBetterAuthOptions } from './options';
 
 /**
  * Better Auth Instance
@@ -15,7 +15,7 @@ export const auth = (
   const db = drizzle(sql);
 
   return betterAuth({
-    ...betterAuthOptions,
+    ...getBetterAuthOptions(env),
     database: drizzleAdapter(db, { provider: 'pg', schema }),
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
