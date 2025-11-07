@@ -8,7 +8,7 @@ import {
 const baseURL = import.meta.env.VITE_API_URL;
 
 if (!baseURL) {
-  throw new Error('VITE_API_URL is not set');
+  console.info('🔍 VITE_API_URL is not set, using default value');
 }
 
 /**
