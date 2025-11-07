@@ -13,7 +13,23 @@ const api = new Hono()
   .use(
     '*', // Enable CORS for all API routes (this instance is already mounted at /api)
     cors({
-      origin: 'http://localhost:5173', // replace with your origin
+      origin: (origin, c) => {
+        const env = c.env as CloudflareBindings;
+        // Parse trusted origins from environment variable
+        const trustedOrigins = env.TRUSTED_ORIGINS
+          ? env.TRUSTED_ORIGINS.split(',').map((o) => o.trim())
+          : [];
+        // Always allow localhost for development
+        const allowedOrigins = [
+          ...trustedOrigins,
+          'http://localhost:5173',
+        ];
+
+        if (allowedOrigins.includes(origin)) {
+          return origin;
+        }
+        return allowedOrigins[0]; // Fallback to first trusted origin
+      },
       allowHeaders: ['Content-Type', 'Authorization'],
       allowMethods: ['POST', 'GET', 'OPTIONS'],
       exposeHeaders: ['Content-Length'],
