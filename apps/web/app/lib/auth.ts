@@ -27,6 +27,11 @@ export const authClient = createAuthClient({
 
 console.log('🔍 Auth client created with baseURL:', baseURL);
 
+console.log(
+  'i am seriously amazed taht these env variable are actually working but its not updating the files on the server'
+);
+console.log(' which is ridiculous');
+
 /**
  * Export types from better-auth for convenience
  */
