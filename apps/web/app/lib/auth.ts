@@ -11,7 +11,7 @@ if (!baseURL) {
   console.info('🔍 VITE_API_URL is not set, using default value');
 }
 
-console.log('all env variables:', import.meta.env);
+console.log('all env variabless:', import.meta.env);
 
 /**
  * Better Auth client configuration
