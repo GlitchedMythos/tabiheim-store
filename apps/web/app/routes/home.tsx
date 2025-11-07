@@ -1,21 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
 import {
-  Container,
-  Paper,
-  Title,
-  Text,
-  TextInput,
-  Button,
-  Stack,
-  Center,
   Alert,
   Anchor,
+  Button,
+  Center,
   Loader,
+  Paper,
+  Stack,
+  Text,
+  TextInput,
+  Title,
 } from '@mantine/core';
 import { IconMail } from '@tabler/icons-react';
-import { authClient } from '../lib/auth';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
+import { authClient } from '../lib/auth';
 import type { Route } from './+types/home';
 
 export function meta({}: Route.MetaArgs) {
@@ -67,12 +66,15 @@ export default function Home() {
       <Center
         style={{
           minHeight: '100vh',
-          background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+          background:
+            'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
         }}
       >
         <Stack align="center" gap="md">
           <Loader size="lg" color="white" />
-          <Text c="white" size="xl">Loading...</Text>
+          <Text c="white" size="xl">
+            Loading...
+          </Text>
         </Stack>
       </Center>
     );
@@ -83,18 +85,27 @@ export default function Home() {
       <Center
         style={{
           minHeight: '100vh',
-          background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+          background:
+            'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
           padding: '1rem',
         }}
       >
-        <Paper shadow="xl" p="xl" radius="md" style={{ maxWidth: 450, width: '100%' }}>
+        <Paper
+          shadow="xl"
+          p="xl"
+          radius="md"
+          style={{ maxWidth: 450, width: '100%' }}
+        >
           <Stack align="center" gap="md">
             <Text size="4rem">📧</Text>
             <Title order={2} ta="center">
               Check Your Email
             </Title>
             <Text ta="center" c="dimmed">
-              We've sent a magic link to <Text span fw={700}>{email}</Text>
+              We've sent a magic link to{' '}
+              <Text span fw={700}>
+                {email}
+              </Text>
             </Text>
             <Text size="sm" ta="center" c="dimmed">
               Click the link in the email to sign in to your account.
@@ -119,18 +130,24 @@ export default function Home() {
     <Center
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+        background:
+          'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
         padding: '1rem',
       }}
     >
-      <Paper shadow="xl" p="xl" radius="md" style={{ maxWidth: 450, width: '100%' }}>
+      <Paper
+        shadow="xl"
+        p="xl"
+        radius="md"
+        style={{ maxWidth: 450, width: '100%' }}
+      >
         <Stack gap="lg">
           <Stack gap="xs" align="center">
             <Title order={1} ta="center">
               🎮 Tabiheim Games
             </Title>
             <Text c="dimmed" ta="center">
-              Sign in with your email
+              Sign in with your email (AHOY!)
             </Text>
           </Stack>
 
