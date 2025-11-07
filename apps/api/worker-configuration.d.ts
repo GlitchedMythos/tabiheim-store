@@ -7,6 +7,7 @@ declare namespace Cloudflare {
     BETTER_AUTH_URL: string;
     BETTER_AUTH_SECRET: string;
     RESEND_API_KEY: string;
+    TRUSTED_ORIGINS: string;
     ENVIRONMENT?: string;
   }
 }

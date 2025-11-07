@@ -26,6 +26,7 @@ DATABASE_URL=<your-database-url>
 BETTER_AUTH_URL=http://localhost:8787
 BETTER_AUTH_SECRET=your-secret-key-here-change-in-production
 RESEND_API_KEY=re_dummy_key_for_local_development
+TRUSTED_ORIGINS=http://localhost:5173,http://localhost:8787
 ENVIRONMENT=development
 ```
 
@@ -40,6 +41,7 @@ npx wrangler secret put ENVIRONMENT  # set to "production"
 ### 4. TypeScript Types Updated
 Updated `worker-configuration.d.ts` to include:
 - `RESEND_API_KEY: string`
+- `TRUSTED_ORIGINS: string`
 - `ENVIRONMENT?: string`
 
 ### 5. Better Auth Integration
@@ -106,6 +108,10 @@ npx wrangler secret put BETTER_AUTH_SECRET
 npx wrangler secret put ENVIRONMENT
 # Enter: production
 
+# Set trusted origins (comma-separated list of allowed origins)
+npx wrangler secret put TRUSTED_ORIGINS
+# Enter: https://tabiheimgames.com,https://www.tabiheimgames.com
+
 # Deploy
 pnpm run deploy
 ```
@@ -116,6 +122,7 @@ In Cloudflare Dashboard or via Wrangler, ensure these variables are set:
 - `BETTER_AUTH_URL` - Your production domain (e.g., https://api.tabiheimgames.com)
 - `BETTER_AUTH_SECRET` - Secure random string
 - `RESEND_API_KEY` - Your Resend API key
+- `TRUSTED_ORIGINS` - Comma-separated list of allowed origins (e.g., https://tabiheimgames.com,https://www.tabiheimgames.com)
 - `ENVIRONMENT` - Set to `production`
 
 ## Email Template

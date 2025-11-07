@@ -1,3 +1,7 @@
 DATABASE_URL=""
 NEON_PROJECT_ID=""
 NEON_API_TOKEN=""
+BETTER_AUTH_URL="http://localhost:8787"
+BETTER_AUTH_SECRET="your-secret-key-here"
+RESEND_API_KEY=""
+TRUSTED_ORIGINS="http://localhost:5173,http://localhost:8787"

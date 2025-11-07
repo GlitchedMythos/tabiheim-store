@@ -23,8 +23,11 @@ export const getBetterAuthOptions = (
   /**
    * Trusted origins for CORS.
    * Include the frontend URL to allow authentication requests.
+   * Parsed from TRUSTED_ORIGINS environment variable (comma-separated).
    */
-  trustedOrigins: ['http://localhost:5173', 'http://localhost:8787'],
+  trustedOrigins: env.TRUSTED_ORIGINS.split(',').map((origin) =>
+    origin.trim()
+  ),
   emailAndPassword: {
     enabled: true,
   },
