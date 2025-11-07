@@ -149,6 +149,9 @@ export default function Home() {
             <Text c="dimmed" ta="center">
               Sign in with your email (AHOY!)
             </Text>
+            <Text c="dimmed" ta="center">
+              I do not get why this has not updated on the server yet.
+            </Text>
           </Stack>
 
           <form onSubmit={handleSubmit}>
