@@ -1,5 +1,15 @@
 import { createAuthClient } from 'better-auth/client';
-import { adminClient, organizationClient, magicLinkClient } from 'better-auth/client/plugins';
+import {
+  adminClient,
+  magicLinkClient,
+  organizationClient,
+} from 'better-auth/client/plugins';
+
+const baseURL = import.meta.env.VITE_API_URL;
+
+if (!baseURL) {
+  throw new Error('VITE_API_URL is not set');
+}
 
 /**
  * Better Auth client configuration
@@ -8,17 +18,13 @@ import { adminClient, organizationClient, magicLinkClient } from 'better-auth/cl
  * mounted at /api/auth on the backend server.
  */
 export const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8787',
-
-  plugins: [
-    adminClient(),
-    organizationClient(),
-    magicLinkClient(),
-  ],
+  baseURL,
+  plugins: [adminClient(), organizationClient(), magicLinkClient()],
 });
+
+console.log('🔍 Auth client created with baseURL:', baseURL);
 
 /**
  * Export types from better-auth for convenience
  */
 export type { User } from 'better-auth/types';
-
