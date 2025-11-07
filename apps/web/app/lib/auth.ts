@@ -9,6 +9,7 @@ const baseURL = import.meta.env.VITE_API_URL;
 
 if (!baseURL) {
   console.info('🔍 VITE_API_URL is not set, using default value');
+  console.info('still missing env variables:', import.meta.env);
 }
 
 console.log('all env variabless:', import.meta.env);
