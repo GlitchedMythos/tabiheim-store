@@ -2,8 +2,11 @@ name = 'tabiheim-inventory-api'
 compatibility_date = "2025-02-04"
 compatibility_flags = [ "nodejs_compat" ]
 
-# [vars]
-# MY_VAR = "my-variable"
+# Non-sensitive environment variables
+[vars]
+ENVIRONMENT = "production"
+BETTER_AUTH_URL = "https://inventory-api.tabiheimgames.com"
+TRUSTED_ORIGINS = "https://tabiheimgames.com,https://inventory-api.tabiheimgames.com"
 
 # Workers Logs
 # Docs: https://developers.cloudflare.com/workers/observability/logs/workers-logs/
