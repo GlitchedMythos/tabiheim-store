@@ -44,7 +44,7 @@ export const getBetterAuthOptions = (
         }
       },
       expiresIn: 300,
-      disableSignUp: false,
+      disableSignUp: true,
     }),
   ],
   // .... More options
