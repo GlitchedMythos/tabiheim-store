@@ -112,6 +112,14 @@ export const invitation = pgTable('invitation', {
 
 // TCG (Trading Card Game) Tables
 
+export const category = pgTable('category', {
+  categoryId: integer('category_id').primaryKey(), // Static ID from external API
+  name: text('name').notNull(),
+  displayName: text('display_name'),
+  publishedOn: timestamp('published_on', { mode: 'date' }),
+  modifiedOn: timestamp('modified_on', { mode: 'date' }),
+});
+
 export const cardGroup = pgTable('card_group', {
   groupId: integer('group_id').primaryKey(), // Static ID from external API
   name: text('name').notNull(),
@@ -119,7 +127,10 @@ export const cardGroup = pgTable('card_group', {
   isSupplemental: boolean('is_supplemental').default(false),
   publishedOn: timestamp('published_on', { mode: 'date' }),
   modifiedOn: timestamp('modified_on', { mode: 'date' }),
-  categoryId: integer('category_id'),
+  categoryId: integer('category_id').references(
+    () => category.categoryId,
+    { onDelete: 'cascade' }
+  ),
 });
 
 export const card = pgTable('card', {

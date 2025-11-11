@@ -43,6 +43,13 @@
       "when": 1762894893612,
       "tag": "0005_organic_power_man",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1762901096477,
+      "tag": "0006_superb_chronomancer",
+      "breakpoints": true
     }
   ]
 }
