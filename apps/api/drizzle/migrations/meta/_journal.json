@@ -22,6 +22,27 @@
       "when": 1762394293522,
       "tag": "0002_powerful_the_hood",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1762892999397,
+      "tag": "0003_omniscient_sasquatch",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1762893737391,
+      "tag": "0004_loving_goliath",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1762894893612,
+      "tag": "0005_organic_power_man",
+      "breakpoints": true
     }
   ]
 }
