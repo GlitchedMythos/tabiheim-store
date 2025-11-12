@@ -1,4 +1,8 @@
-import { createTheme, MantineProvider } from '@mantine/core';
+import {
+  ColorSchemeScript,
+  createTheme,
+  MantineProvider,
+} from '@mantine/core';
 import '@mantine/core/styles.css';
 import {
   isRouteErrorResponse,
@@ -41,9 +45,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />
         <Meta />
         <Links />
+        <ColorSchemeScript defaultColorScheme="auto" />
       </head>
       <body>
-        <MantineProvider theme={theme}>{children}</MantineProvider>
+        <MantineProvider theme={theme} defaultColorScheme="auto">
+          {children}
+        </MantineProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

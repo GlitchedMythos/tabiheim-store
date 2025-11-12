@@ -8,6 +8,7 @@ import {
   Text,
   Title,
 } from '@mantine/core';
+import { useRouteLoaderData } from 'react-router';
 import type { Route } from './+types/dashboard';
 
 export function meta({}: Route.MetaArgs) {
@@ -17,9 +18,9 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export default function Dashboard({ matches }: Route.ComponentProps) {
+export default function Dashboard() {
   // Get user data from parent layout loader
-  const layoutData = matches[0]?.data as unknown as
+  const layoutData = useRouteLoaderData('admin') as
     | { user?: { id: string; email: string; name?: string } }
     | undefined;
   const user = layoutData?.user;

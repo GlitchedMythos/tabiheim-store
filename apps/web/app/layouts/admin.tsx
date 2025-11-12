@@ -1,23 +1,25 @@
-import { useState } from 'react';
-import { redirect, Outlet, useNavigate } from 'react-router';
 import {
   AppShell,
+  Avatar,
   Burger,
   Group,
+  Menu,
   NavLink,
-  Text,
-  ActionIcon,
   Stack,
   Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
   IconDashboard,
-  IconChartBar,
   IconDeviceGamepad2,
-  IconSettings,
+  IconFileSearch,
   IconLogout,
+  IconMoonStars,
+  IconSettings,
+  IconSun,
 } from '@tabler/icons-react';
+import { Outlet, redirect, useNavigate } from 'react-router';
+import { useColorScheme } from '../hooks/useColorScheme';
 import { authClient } from '../lib/auth';
 import type { Route } from './+types/admin';
 
@@ -33,10 +35,13 @@ export async function clientLoader({}: Route.ClientLoaderArgs) {
   return { user: session.user };
 }
 
-export default function AdminLayout({ loaderData }: Route.ComponentProps) {
+export default function AdminLayout({
+  loaderData,
+}: Route.ComponentProps) {
   const [opened, { toggle }] = useDisclosure();
   const navigate = useNavigate();
   const { user } = loaderData;
+  const { computedColorScheme, toggleColorScheme } = useColorScheme();
 
   async function handleSignOut() {
     await authClient.signOut();
@@ -56,21 +61,55 @@ export default function AdminLayout({ loaderData }: Route.ComponentProps) {
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Group>
-            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+            <Burger
+              opened={opened}
+              onClick={toggle}
+              hiddenFrom="sm"
+              size="sm"
+            />
             <Title order={3}>🎮 Tabiheim Games</Title>
           </Group>
           <Group gap="xs">
-            <Text size="sm" c="dimmed">
-              {user.email}
-            </Text>
-            <ActionIcon
-              variant="subtle"
-              color="red"
-              onClick={handleSignOut}
-              title="Sign Out"
-            >
-              <IconLogout size={18} />
-            </ActionIcon>
+            <Menu withArrow>
+              <Menu.Target>
+                <Avatar
+                  style={{
+                    cursor: 'pointer',
+                    transition: 'box-shadow 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow =
+                      '0 4px 12px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={
+                    computedColorScheme === 'dark' ? (
+                      <IconSun size={14} />
+                    ) : (
+                      <IconMoonStars size={14} />
+                    )
+                  }
+                  onClick={toggleColorScheme}
+                >
+                  {computedColorScheme === 'dark'
+                    ? 'Light Mode'
+                    : 'Dark Mode'}
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item
+                  leftSection={<IconLogout size={14} />}
+                  onClick={handleSignOut}
+                >
+                  Sign Out
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
           </Group>
         </Group>
       </AppShell.Header>
@@ -84,22 +123,20 @@ export default function AdminLayout({ loaderData }: Route.ComponentProps) {
             active={window.location.pathname === '/dashboard'}
           />
           <NavLink
-            label="Analytics"
-            leftSection={<IconChartBar size={20} />}
-            disabled
-            description="Coming soon"
+            href="/products"
+            label="Products"
+            leftSection={<IconFileSearch size={20} />}
+            active={window.location.pathname === '/products'}
           />
           <NavLink
             label="Games"
             leftSection={<IconDeviceGamepad2 size={20} />}
             disabled
-            description="Coming soon"
           />
           <NavLink
             label="Settings"
             leftSection={<IconSettings size={20} />}
             disabled
-            description="Coming soon"
           />
         </Stack>
       </AppShell.Navbar>
@@ -110,4 +147,3 @@ export default function AdminLayout({ loaderData }: Route.ComponentProps) {
     </AppShell>
   );
 }
-
