@@ -112,15 +112,14 @@ export const invitation = pgTable('invitation', {
 
 // TCG (Trading Card Game) Tables
 
-export const category = pgTable('category', {
+export const productCategory = pgTable('product_category', {
   categoryId: integer('category_id').primaryKey(), // Static ID from external API
   name: text('name').notNull(),
   displayName: text('display_name'),
-  publishedOn: timestamp('published_on', { mode: 'date' }),
   modifiedOn: timestamp('modified_on', { mode: 'date' }),
 });
 
-export const cardGroup = pgTable('card_group', {
+export const productGroup = pgTable('product_group', {
   groupId: integer('group_id').primaryKey(), // Static ID from external API
   name: text('name').notNull(),
   abbreviation: text('abbreviation'),
@@ -128,21 +127,21 @@ export const cardGroup = pgTable('card_group', {
   publishedOn: timestamp('published_on', { mode: 'date' }),
   modifiedOn: timestamp('modified_on', { mode: 'date' }),
   categoryId: integer('category_id').references(
-    () => category.categoryId,
+    () => productCategory.categoryId,
     { onDelete: 'cascade' }
   ),
 });
 
-export const card = pgTable('card', {
+export const product = pgTable('product', {
   productId: integer('product_id').primaryKey(), // Static ID from external API
   name: text('name').notNull(),
   cleanName: text('clean_name'),
-  cardNumber: text('card_number'), // Card number - format varies by game (e.g., "003/142" for Pokemon, "382" for Magic)
+  cardNumber: text('card_number'), // Card number - format varies by game (e.g., "003/142" for Pokemon, "OP11-001" for One Piece)
   imageUrl: text('image_url'),
   categoryId: integer('category_id'),
   groupId: integer('group_id')
     .notNull()
-    .references(() => cardGroup.groupId, { onDelete: 'cascade' }),
+    .references(() => productGroup.groupId, { onDelete: 'cascade' }),
   url: text('url'),
   modifiedOn: timestamp('modified_on', { mode: 'date' }),
   imageCount: integer('image_count').default(0),
@@ -151,7 +150,7 @@ export const card = pgTable('card', {
 export const presaleInfo = pgTable('presale_info', {
   productId: integer('product_id')
     .primaryKey()
-    .references(() => card.productId, { onDelete: 'cascade' }),
+    .references(() => product.productId, { onDelete: 'cascade' }),
   isPresale: boolean('is_presale').default(false).notNull(),
   releasedOn: timestamp('released_on', { mode: 'date' }),
   note: text('note'),
@@ -161,30 +160,30 @@ export const extendedData = pgTable('extended_data', {
   id: serial('id').primaryKey(),
   productId: integer('product_id')
     .notNull()
-    .references(() => card.productId, { onDelete: 'cascade' }),
+    .references(() => product.productId, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   displayName: text('display_name'),
   value: text('value'),
 });
 
-export const cardSubtype = pgTable('card_subtype', {
+export const productSubtype = pgTable('product_subtype', {
   id: serial('id').primaryKey(),
   productId: integer('product_id')
     .notNull()
-    .references(() => card.productId, { onDelete: 'cascade' }),
+    .references(() => product.productId, { onDelete: 'cascade' }),
   subTypeName: text('sub_type_name').notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   firstSeenAt: timestamp('first_seen_at', { mode: 'date' }),
   lastSeenAt: timestamp('last_seen_at', { mode: 'date' }),
 });
 
-export const price = pgTable(
-  'price',
+export const productPrice = pgTable(
+  'product_price',
   {
     id: serial('id'),
-    cardSubtypeId: integer('card_subtype_id')
+    productSubtypeId: integer('product_subtype_id')
       .notNull()
-      .references(() => cardSubtype.id, { onDelete: 'cascade' }),
+      .references(() => productSubtype.id, { onDelete: 'cascade' }),
     recordedAt: timestamp('recorded_at', {
       withTimezone: true,
       mode: 'date',
