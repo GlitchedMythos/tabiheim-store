@@ -7,6 +7,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
@@ -166,16 +167,23 @@ export const extendedData = pgTable('extended_data', {
   value: text('value'),
 });
 
-export const productSubtype = pgTable('product_subtype', {
-  id: serial('id').primaryKey(),
-  productId: integer('product_id')
-    .notNull()
-    .references(() => product.productId, { onDelete: 'cascade' }),
-  subTypeName: text('sub_type_name').notNull(),
-  isActive: boolean('is_active').default(true).notNull(),
-  firstSeenAt: timestamp('first_seen_at', { mode: 'date' }),
-  lastSeenAt: timestamp('last_seen_at', { mode: 'date' }),
-});
+export const productSubtype = pgTable(
+  'product_subtype',
+  {
+    id: serial('id').primaryKey(),
+    productId: integer('product_id')
+      .notNull()
+      .references(() => product.productId, { onDelete: 'cascade' }),
+    subTypeName: text('sub_type_name').notNull(),
+  },
+  (table) => ({
+    // Unique constraint to prevent duplicate product-subtype combinations
+    uniqueProductSubtype: unique().on(
+      table.productId,
+      table.subTypeName
+    ),
+  })
+);
 
 export const productPrice = pgTable(
   'product_price',
