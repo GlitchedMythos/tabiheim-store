@@ -1,10 +1,10 @@
 import { neon } from '@neondatabase/serverless';
 import { config } from 'dotenv';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { seedPricesFromArchive } from './lib/price-seeding';
 import { execSync } from 'node:child_process';
-import { mkdirSync, rmSync, existsSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { seedPricesFromArchive } from './lib/price-seeding';
 
 /**
  * Historical Price Import Script
@@ -75,7 +75,9 @@ async function downloadArchive(
     const response = await fetch(archiveUrl);
 
     if (response.status === 404) {
-      console.log(`   ⚠️  Archive not found (404) - skipping this date`);
+      console.log(
+        `   ⚠️  Archive not found (404) - skipping this date`
+      );
       return false;
     }
 
@@ -92,11 +94,15 @@ async function downloadArchive(
     const fs = await import('node:fs/promises');
     await fs.writeFile(outputPath, buffer);
 
-    console.log(`   ✅ Downloaded successfully (${buffer.length} bytes)`);
+    console.log(
+      `   ✅ Downloaded successfully (${buffer.length} bytes)`
+    );
     return true;
   } catch (error) {
     if (error instanceof Error && error.message.includes('404')) {
-      console.log(`   ⚠️  Archive not found (404) - skipping this date`);
+      console.log(
+        `   ⚠️  Archive not found (404) - skipping this date`
+      );
       return false;
     }
     throw error;
@@ -106,7 +112,10 @@ async function downloadArchive(
 /**
  * Extracts a 7z archive using the 7z command-line tool
  */
-function extractArchive(archivePath: string, outputDir: string): void {
+function extractArchive(
+  archivePath: string,
+  outputDir: string
+): void {
   console.log(`\n📦 Extracting archive...`);
   console.log(`   Output directory: ${outputDir}`);
 
@@ -139,8 +148,12 @@ async function main() {
     const args = process.argv.slice(2);
     if (args.length === 0) {
       console.error('❌ Error: Missing start date argument');
-      console.error('\nUsage: pnpm run db:import-historical YYYY-MM-DD');
-      console.error('Example: pnpm run db:import-historical 2024-02-08');
+      console.error(
+        '\nUsage: pnpm run db:import-historical YYYY-MM-DD'
+      );
+      console.error(
+        'Example: pnpm run db:import-historical 2024-02-08'
+      );
       process.exit(1);
     }
 
@@ -174,13 +187,17 @@ async function main() {
     }
 
     console.log('📅 TCG Historical Price Import Script\n');
-    console.log('Environment:', process.env.ENVIRONMENT || 'development');
+    console.log(
+      'Environment:',
+      process.env.ENVIRONMENT || 'development'
+    );
     console.log('Start date:', formatDate(startDate));
     console.log('End date:', formatDate(yesterday));
 
     // Calculate number of days
     const daysDiff = Math.floor(
-      (yesterday.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      (yesterday.getTime() - startDate.getTime()) /
+        (1000 * 60 * 60 * 24)
     );
     console.log(`Total days to process: ${daysDiff + 1}\n`);
 
@@ -213,7 +230,10 @@ async function main() {
           TEMP_DIR,
           `prices-${dateString}.ppmd.7z`
         );
-        const downloaded = await downloadArchive(dateString, archivePath);
+        const downloaded = await downloadArchive(
+          dateString,
+          archivePath
+        );
 
         if (!downloaded) {
           skipCount++;
@@ -243,7 +263,10 @@ async function main() {
           rmSync(archivePath, { force: true });
           const extractedDateDir = join(TEMP_DIR, dateString);
           if (existsSync(extractedDateDir)) {
-            rmSync(extractedDateDir, { recursive: true, force: true });
+            rmSync(extractedDateDir, {
+              recursive: true,
+              force: true,
+            });
           }
           console.log(`   ✅ Cleanup complete`);
         } catch (cleanupError) {
@@ -271,9 +294,14 @@ async function main() {
     console.log(`✅ Successfully imported: ${successCount} days`);
     console.log(`⚠️  Skipped (no archive): ${skipCount} days`);
     console.log(`❌ Errors: ${errorCount} days`);
-    console.log('\n✅ Historical price import completed successfully!');
+    console.log(
+      '\n✅ Historical price import completed successfully!'
+    );
   } catch (error) {
-    console.error('\n❌ Error during historical price import:', error);
+    console.error(
+      '\n❌ Error during historical price import:',
+      error
+    );
     process.exit(1);
   } finally {
     // Clean up temp directory
@@ -284,7 +312,10 @@ async function main() {
         console.log(`   ✅ Temporary directory removed`);
       }
     } catch (cleanupError) {
-      console.warn(`   ⚠️  Failed to remove temp directory:`, cleanupError);
+      console.warn(
+        `   ⚠️  Failed to remove temp directory:`,
+        cleanupError
+      );
       console.warn(`   Please manually remove: ${TEMP_DIR}`);
     }
     process.exit(0);
@@ -292,4 +323,3 @@ async function main() {
 }
 
 main();
-
