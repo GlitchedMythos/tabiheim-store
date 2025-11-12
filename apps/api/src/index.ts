@@ -7,6 +7,7 @@ import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { auth } from './lib/better-auth';
 import { dbProvider } from './middleware/dbProvider';
+import categoriesRouter from './routes/categories';
 import productsRouter from './routes/products';
 
 const api = new Hono()
@@ -41,6 +42,7 @@ const api = new Hono()
   .on(['GET', 'POST'], 'auth/*', async (c) => {
     return auth(c.env as CloudflareBindings).handler(c.req.raw);
   })
+  .route('/categories', categoriesRouter)
   .route('/products', productsRouter);
 // .get("/users", async (c) => {
 //   const db = c.var.db;
