@@ -2,6 +2,8 @@ import { neon } from "@neondatabase/serverless";
 import { type NeonHttpDatabase, drizzle } from "drizzle-orm/neon-http";
 import { createMiddleware } from "hono/factory";
 
+export type DrizzleDB = NeonHttpDatabase;
+
 export const dbProvider = createMiddleware<{
   Bindings: {
     DATABASE_URL: string;

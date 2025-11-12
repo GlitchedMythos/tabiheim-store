@@ -24,6 +24,24 @@ beforeAll(async () => {
       }),
     };
   });
+
+  vi.mock("../src/middleware/auth.ts", () => {
+    return {
+      requireAuth: createMiddleware(async (c, next) => {
+        // Mock authenticated user for tests
+        c.set("user", {
+          id: "test-user-id",
+          name: "Test User",
+          email: "test@example.com",
+        });
+        c.set("session", {
+          id: "test-session-id",
+          userId: "test-user-id",
+        });
+        await next();
+      }),
+    };
+  });
 });
 
 afterAll(async () => {

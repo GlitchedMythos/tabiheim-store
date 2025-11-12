@@ -167,6 +167,7 @@ export const extendedData = pgTable('extended_data', {
   value: text('value'),
 });
 
+// TODO: These id's are not unique and should be
 export const productSubtype = pgTable(
   'product_subtype',
   {
