@@ -79,3 +79,61 @@ export interface Category {
   modifiedOn: Date | null;
 }
 
+// Full product detail response (single product endpoint)
+export interface ProductDetail {
+  productId: number;
+  name: string;
+  cleanName: string | null;
+  cardNumber: string | null;
+  imageUrl: string | null;
+  categoryId: number | null;
+  groupId: number;
+  url: string | null;
+  modifiedOn: Date | null;
+  imageCount: number | null;
+  group: {
+    groupId: number;
+    name: string;
+    abbreviation: string | null;
+    isSupplemental: boolean | null;
+    publishedOn: Date | null;
+    modifiedOn: Date | null;
+    categoryId: number | null;
+  } | null;
+  category: {
+    categoryId: number;
+    name: string;
+    displayName: string | null;
+    modifiedOn: Date | null;
+  } | null;
+  subtypes: ProductSubtype[];
+  extendedData: Array<{
+    name: string;
+    displayName: string | null;
+    value: string | null;
+  }>;
+}
+
+// Price timeline point
+export interface PriceTimelinePoint {
+  bucket: Date;
+  avgLowPrice: string | null;
+  avgMidPrice: string | null;
+  avgHighPrice: string | null;
+  avgMarketPrice: string | null;
+  avgDirectLowPrice: string | null;
+  minLowPrice: string | null;
+  maxHighPrice: string | null;
+  dataPoints: number;
+}
+
+// Price timeline response
+export interface ProductPriceTimeline {
+  productId: number;
+  subtypes: Array<{
+    subtypeId: number;
+    subTypeName: string;
+    timeline: PriceTimelinePoint[];
+  }>;
+}
+

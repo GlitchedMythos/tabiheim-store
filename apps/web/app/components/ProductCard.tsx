@@ -9,15 +9,24 @@ import {
   Stack,
   Text,
 } from '@mantine/core';
-import { IconExternalLink } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
+import {
+  IconExternalLink,
+  IconInfoCircle,
+} from '@tabler/icons-react';
 import { useProductPrices } from '../hooks/useProductPrices';
 import type { Product, ProductMinimal } from '../lib/types';
+import { ProductDetailsModal } from './ProductDetailsModal';
 
 interface ProductCardProps {
   product: Product | ProductMinimal;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  // Modal state
+  const [modalOpened, { open: openModal, close: closeModal }] =
+    useDisclosure(false);
+
   // Lazy load prices for this product
   const { data: pricesData, isLoading: pricesLoading } =
     useProductPrices({
@@ -130,23 +139,42 @@ export function ProductCard({ product }: ProductCardProps) {
             )
           )}
 
-          {/* TCGPlayer Link */}
-          {product.url && (
+          {/* Action Buttons */}
+          <Stack gap="xs" mt="md">
+            {/* See More Info Button */}
             <Button
-              component="a"
-              href={`${product.url}?Language=English&Condition=Near+Mint&page=1`}
-              target="_blank"
-              rel="noopener noreferrer"
-              rightSection={<IconExternalLink size={16} />}
-              variant="light"
+              onClick={openModal}
+              leftSection={<IconInfoCircle size={16} />}
+              variant="filled"
               fullWidth
-              mt="md"
             >
-              View on TCGPlayer
+              See More Info
             </Button>
-          )}
+
+            {/* TCGPlayer Link */}
+            {product.url && (
+              <Button
+                component="a"
+                href={`${product.url}?Language=English&Condition=Near+Mint&page=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                rightSection={<IconExternalLink size={16} />}
+                variant="light"
+                fullWidth
+              >
+                View on TCGPlayer
+              </Button>
+            )}
+          </Stack>
         </Stack>
       </Group>
+
+      {/* Product Details Modal */}
+      <ProductDetailsModal
+        productId={product.productId}
+        opened={modalOpened}
+        onClose={closeModal}
+      />
     </Card>
   );
 }

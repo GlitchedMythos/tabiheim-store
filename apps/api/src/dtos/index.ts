@@ -158,3 +158,110 @@ export const ZProductPricesResponse = z.object({
 });
 
 export type ProductPricesResponse = z.infer<typeof ZProductPricesResponse>;
+
+// Product Detail Schemas
+export const ZProductIdParams = z.object({
+  productId: z.coerce.number().int().positive(),
+});
+
+export type ProductIdParams = z.infer<typeof ZProductIdParams>;
+
+export const ZProductDetailResponse = z.object({
+  productId: z.number(),
+  name: z.string(),
+  cleanName: z.string().nullable(),
+  cardNumber: z.string().nullable(),
+  imageUrl: z.string().nullable(),
+  categoryId: z.number().nullable(),
+  groupId: z.number(),
+  url: z.string().nullable(),
+  modifiedOn: z.date().nullable(),
+  imageCount: z.number().nullable(),
+  group: z.object({
+    groupId: z.number(),
+    name: z.string(),
+    abbreviation: z.string().nullable(),
+    isSupplemental: z.boolean().nullable(),
+    publishedOn: z.date().nullable(),
+    modifiedOn: z.date().nullable(),
+    categoryId: z.number().nullable(),
+  }).nullable(),
+  category: z.object({
+    categoryId: z.number(),
+    name: z.string(),
+    displayName: z.string().nullable(),
+    modifiedOn: z.date().nullable(),
+  }).nullable(),
+  subtypes: z.array(
+    z.object({
+      subtypeId: z.number(),
+      subTypeName: z.string(),
+      latestPrice: z.object({
+        lowPrice: z.string().nullable(),
+        midPrice: z.string().nullable(),
+        highPrice: z.string().nullable(),
+        marketPrice: z.string().nullable(),
+        directLowPrice: z.string().nullable(),
+        recordedAt: z.date(),
+      }).nullable(),
+    })
+  ),
+  extendedData: z.array(
+    z.object({
+      name: z.string(),
+      displayName: z.string().nullable(),
+      value: z.string().nullable(),
+    })
+  ),
+});
+
+export type ProductDetailResponse = z.infer<typeof ZProductDetailResponse>;
+
+// Product Price Timeline Schemas
+export const ZProductPriceTimelineParams = z.object({
+  productId: z.coerce.number().int().positive(),
+});
+
+export type ProductPriceTimelineParams = z.infer<
+  typeof ZProductPriceTimelineParams
+>;
+
+export const ZProductPriceTimelineQuery = z.object({
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date().optional(),
+  interval: z
+    .enum(['1 hour', '6 hours', '12 hours', '1 day', '1 week', '1 month'])
+    .default('1 day')
+    .optional(),
+});
+
+export type ProductPriceTimelineQuery = z.infer<
+  typeof ZProductPriceTimelineQuery
+>;
+
+export const ZProductPriceTimelineResponse = z.object({
+  productId: z.number(),
+  subtypes: z.array(
+    z.object({
+      subtypeId: z.number(),
+      subTypeName: z.string(),
+      timeline: z.array(
+        z.object({
+          bucket: z.date(),
+          avgLowPrice: z.string().nullable(),
+          avgMidPrice: z.string().nullable(),
+          avgHighPrice: z.string().nullable(),
+          avgMarketPrice: z.string().nullable(),
+          avgDirectLowPrice: z.string().nullable(),
+          minLowPrice: z.string().nullable(),
+          maxHighPrice: z.string().nullable(),
+          dataPoints: z.number(),
+        })
+      ),
+    })
+  ),
+});
+
+export type ProductPriceTimelineResponse = z.infer<
+  typeof ZProductPriceTimelineResponse
+>;

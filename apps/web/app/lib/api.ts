@@ -1,9 +1,12 @@
 import type {
+  ProductDetail,
+  ProductPriceTimeline,
   ProductPricesResponse,
   ProductSearchResponse,
 } from './types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://localhost:8787';
 
 /**
  * Base API error class
@@ -97,7 +100,9 @@ export const productsApi = {
     }
 
     const queryString = searchParams.toString();
-    const endpoint = `/api/products/search${queryString ? `?${queryString}` : ''}`;
+    const endpoint = `/api/products/search${
+      queryString ? `?${queryString}` : ''
+    }`;
 
     return apiFetch<ProductSearchResponse>(endpoint);
   },
@@ -115,5 +120,32 @@ export const productsApi = {
 
     return apiFetch<ProductPricesResponse>(endpoint);
   },
-};
 
+  /**
+   * Get full details for a single product
+   */
+  getProduct: async (productId: number) => {
+    const endpoint = `/api/products/${productId}`;
+    return apiFetch<ProductDetail>(endpoint);
+  },
+
+  /**
+   * Get price timeline for a product
+   */
+  getPriceTimeline: async (
+    productId: number,
+    startDate: Date,
+    endDate?: Date,
+    interval: string = '1 day'
+  ) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('startDate', startDate.toISOString());
+    if (endDate) {
+      searchParams.append('endDate', endDate.toISOString());
+    }
+    searchParams.append('interval', interval);
+
+    const endpoint = `/api/products/${productId}/prices/timeline?${searchParams.toString()}`;
+    return apiFetch<ProductPriceTimeline>(endpoint);
+  },
+};
