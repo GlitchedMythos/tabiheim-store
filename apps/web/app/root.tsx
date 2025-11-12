@@ -31,7 +31,7 @@ export const links: Route.LinksFunction = () => [
 
 const theme = createTheme({
   fontFamily: 'Inter, sans-serif',
-  primaryColor: 'violet',
+  primaryColor: 'blue',
 });
 
 export function Layout({ children }: { children: React.ReactNode }) {
