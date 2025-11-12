@@ -1,7 +1,7 @@
-import type { ValidationTargets } from "hono";
-import { HTTPException } from "hono/http-exception";
-import { validator } from "hono/validator";
-import type { z } from "zod";
+import type { ValidationTargets } from 'hono';
+import { HTTPException } from 'hono/http-exception';
+import { validator } from 'hono/validator';
+import type { z } from 'zod';
 
 /**
  * A wrapper around `hono/validator` configured for Zod schemas
@@ -11,17 +11,17 @@ import type { z } from "zod";
  */
 export const zodValidator = <
   Target extends keyof ValidationTargets,
-  Schema extends z.AnyZodObject,
+  Schema extends z.ZodType
 >(
   target: Target,
-  schema: Schema,
+  schema: Schema
 ) => {
-  return validator(target, (value): Schema["_output"] => {
+  return validator(target, (value): Schema['_output'] => {
     const result = schema.safeParse(value);
 
     if (!result.success) {
       throw new HTTPException(400, {
-        message: "Invalid Request",
+        message: 'Invalid Request',
         cause: result.error,
       });
     }

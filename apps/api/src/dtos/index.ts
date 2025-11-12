@@ -45,7 +45,28 @@ export const ZProductSearchResponse = z.object({
         name: z.string().nullable(),
         abbreviation: z.string().nullable(),
       }),
-      subtypes: z.array(z.string()),
+      subtypes: z.array(
+        z.object({
+          subTypeName: z.string(),
+          latestPrice: z
+            .object({
+              lowPrice: z.string().nullable(),
+              midPrice: z.string().nullable(),
+              highPrice: z.string().nullable(),
+              marketPrice: z.string().nullable(),
+              directLowPrice: z.string().nullable(),
+              recordedAt: z.date(),
+            })
+            .nullable(),
+        })
+      ),
+      extendedData: z.array(
+        z.object({
+          name: z.string(),
+          displayName: z.string().nullable(),
+          value: z.string().nullable(),
+        })
+      ),
     })
   ),
   pagination: z.object({

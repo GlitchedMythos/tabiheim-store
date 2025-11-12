@@ -61,7 +61,33 @@ describe('GET /api/products/search', () => {
           abbreviation: expect.toBeOneOf([expect.any(String), null]),
         },
         subtypes: expect.any(Array),
+        extendedData: expect.any(Array),
       });
+
+      // Check subtypes structure if present
+      if (product.subtypes.length > 0) {
+        const subtype = product.subtypes[0];
+        expect(subtype).toEqual({
+          subTypeName: expect.any(String),
+          latestPrice: expect.toBeOneOf([
+            expect.objectContaining({
+              lowPrice: expect.toBeOneOf([expect.any(String), null]),
+              midPrice: expect.toBeOneOf([expect.any(String), null]),
+              highPrice: expect.toBeOneOf([expect.any(String), null]),
+              marketPrice: expect.toBeOneOf([
+                expect.any(String),
+                null,
+              ]),
+              directLowPrice: expect.toBeOneOf([
+                expect.any(String),
+                null,
+              ]),
+              recordedAt: expect.any(String),
+            }),
+            null,
+          ]),
+        });
+      }
     }
   });
 

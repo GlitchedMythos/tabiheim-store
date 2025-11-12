@@ -4,6 +4,7 @@ import {
   MantineProvider,
 } from '@mantine/core';
 import '@mantine/core/styles.css';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   isRouteErrorResponse,
   Links,
@@ -12,6 +13,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from 'react-router';
+import { useState } from 'react';
 
 import type { Route } from './+types/root';
 import './app.css';
@@ -35,6 +37,18 @@ const theme = createTheme({
 });
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 60 * 1000, // 1 minute
+            refetchOnWindowFocus: false,
+          },
+        },
+      })
+  );
+
   return (
     <html lang="en">
       <head>
@@ -48,9 +62,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <ColorSchemeScript defaultColorScheme="auto" />
       </head>
       <body>
-        <MantineProvider theme={theme} defaultColorScheme="auto">
-          {children}
-        </MantineProvider>
+        <QueryClientProvider client={queryClient}>
+          <MantineProvider theme={theme} defaultColorScheme="auto">
+            {children}
+          </MantineProvider>
+        </QueryClientProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

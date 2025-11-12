@@ -1,6 +1,12 @@
 import { and, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { product, productGroup, productSubtype } from '../db/schema';
+import {
+  extendedData,
+  product,
+  productGroup,
+  productPrice,
+  productSubtype,
+} from '../db/schema';
 import { ZProductSearchQuery } from '../dtos';
 import { requireAuth } from '../middleware/auth';
 import type { DrizzleDB } from '../middleware/dbProvider';
@@ -107,6 +113,7 @@ productsRouter.get(
       productIds.length > 0
         ? await db
             .select({
+              id: productSubtype.id,
               productId: productSubtype.productId,
               subTypeName: productSubtype.subTypeName,
             })
@@ -114,19 +121,156 @@ productsRouter.get(
             .where(inArray(productSubtype.productId, productIds))
         : [];
 
-    // Group subtypes by product ID
+    // Fetch latest prices for all subtypes
+    const subtypeIds = subtypesData.map((st) => st.id);
+    const pricesData =
+      subtypeIds.length > 0
+        ? await db
+            .select({
+              productSubtypeId: productPrice.productSubtypeId,
+              lowPrice: productPrice.lowPrice,
+              midPrice: productPrice.midPrice,
+              highPrice: productPrice.highPrice,
+              marketPrice: productPrice.marketPrice,
+              directLowPrice: productPrice.directLowPrice,
+              recordedAt: productPrice.recordedAt,
+            })
+            .from(productPrice)
+            .where(inArray(productPrice.productSubtypeId, subtypeIds))
+            .orderBy(sql`${productPrice.recordedAt} DESC`)
+        : [];
+
+    // Get only the most recent price for each subtype
+    const latestPricesBySubtype = pricesData.reduce(
+      (
+        acc: Record<
+          number,
+          {
+            lowPrice: string | null;
+            midPrice: string | null;
+            highPrice: string | null;
+            marketPrice: string | null;
+            directLowPrice: string | null;
+            recordedAt: Date;
+          }
+        >,
+        price: (typeof pricesData)[number]
+      ) => {
+        // Only store if we haven't seen this subtype yet (due to DESC ordering)
+        if (!acc[price.productSubtypeId]) {
+          acc[price.productSubtypeId] = {
+            lowPrice: price.lowPrice,
+            midPrice: price.midPrice,
+            highPrice: price.highPrice,
+            marketPrice: price.marketPrice,
+            directLowPrice: price.directLowPrice,
+            recordedAt: price.recordedAt,
+          };
+        }
+        return acc;
+      },
+      {} as Record<
+        number,
+        {
+          lowPrice: string | null;
+          midPrice: string | null;
+          highPrice: string | null;
+          marketPrice: string | null;
+          directLowPrice: string | null;
+          recordedAt: Date;
+        }
+      >
+    );
+
+    // Group subtypes by product ID with their prices
     const subtypesByProduct = subtypesData.reduce(
       (
-        acc: Record<number, string[]>,
+        acc: Record<
+          number,
+          Array<{
+            subTypeName: string;
+            latestPrice: {
+              lowPrice: string | null;
+              midPrice: string | null;
+              highPrice: string | null;
+              marketPrice: string | null;
+              directLowPrice: string | null;
+              recordedAt: Date;
+            } | null;
+          }>
+        >,
         st: (typeof subtypesData)[number]
       ) => {
         if (!acc[st.productId]) {
           acc[st.productId] = [];
         }
-        acc[st.productId].push(st.subTypeName);
+        acc[st.productId].push({
+          subTypeName: st.subTypeName,
+          latestPrice: latestPricesBySubtype[st.id] || null,
+        });
         return acc;
       },
-      {} as Record<number, string[]>
+      {} as Record<
+        number,
+        Array<{
+          subTypeName: string;
+          latestPrice: {
+            lowPrice: string | null;
+            midPrice: string | null;
+            highPrice: string | null;
+            marketPrice: string | null;
+            directLowPrice: string | null;
+            recordedAt: Date;
+          } | null;
+        }>
+      >
+    );
+
+    // Fetch extended data for all products in the result set
+    const extendedDataResults =
+      productIds.length > 0
+        ? await db
+            .select({
+              productId: extendedData.productId,
+              name: extendedData.name,
+              displayName: extendedData.displayName,
+              value: extendedData.value,
+            })
+            .from(extendedData)
+            .where(inArray(extendedData.productId, productIds))
+        : [];
+
+    // Group extended data by product ID
+    const extendedDataByProduct = extendedDataResults.reduce(
+      (
+        acc: Record<
+          number,
+          Array<{
+            name: string;
+            displayName: string | null;
+            value: string | null;
+          }>
+        >,
+        ed: (typeof extendedDataResults)[number]
+      ) => {
+        if (!acc[ed.productId]) {
+          acc[ed.productId] = [];
+        }
+        acc[ed.productId].push({
+          name: ed.name,
+          displayName: ed.displayName,
+          value: ed.value,
+        });
+        return acc;
+      },
+      {} as Record<
+        number,
+        Array<{
+          name: string;
+          displayName: string | null;
+          value: string | null;
+        }>
+      >
     );
 
     // Format response
@@ -146,6 +290,7 @@ productsRouter.get(
         abbreviation: row.groupAbbreviation,
       },
       subtypes: subtypesByProduct[row.productId] || [],
+      extendedData: extendedDataByProduct[row.productId] || [],
     }));
 
     return c.json({
