@@ -2,7 +2,6 @@ import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 
 import app from '../src';
-import { ProductSearchResponse } from '../src/dtos';
 
 describe('GET /api/products/search', () => {
   it('Returns 200 with empty search (all products)', async () => {

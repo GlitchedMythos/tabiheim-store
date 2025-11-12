@@ -17,24 +17,46 @@ import { useState } from 'react';
 import { ProductCard } from '../components/ProductCard';
 import { useCategories } from '../hooks/useCategories';
 import { useProductSearch } from '../hooks/useProductSearch';
+import { categoriesApi } from '../lib/api';
+import { getQueryClient } from '../lib/queryClient';
+
+/**
+ * Client loader to prefetch categories for the dropdown using React Query
+ */
+export async function clientLoader() {
+  const queryClient = getQueryClient();
+
+  // Prefetch categories using React Query - this will populate the cache
+  await queryClient.prefetchQuery({
+    queryKey: ['categories'],
+    queryFn: () => categoriesApi.getAll(),
+    staleTime: 5 * 60 * 1000, // 5 minutes - categories don't change often
+  });
+
+  // We don't need to return anything since the data is in the cache
+  return null;
+}
 
 export default function Products() {
   const [searchText, setSearchText] = useState('');
-  const [categoryId, setCategoryId] = useState<string | null>(null);
+  // Default to 'All Categories' (empty string)
+  const [categoryId, setCategoryId] = useState<string | null>('');
   const [page, setPage] = useState(1);
 
   // Debounce search text to avoid excessive API calls
   const [debouncedSearchText] = useDebouncedValue(searchText, 500);
 
-  // Fetch categories for dropdown
-  const { data: categoriesData, isLoading: categoriesLoading } =
-    useCategories();
+  // Fetch categories - data is already prefetched in clientLoader
+  const { data: categoriesData } = useCategories();
 
   // Fetch products based on search criteria
   const { data: productsData, isLoading: productsLoading } =
     useProductSearch({
       searchText: debouncedSearchText,
-      categoryId: categoryId ? Number(categoryId) : undefined,
+      categoryId:
+        categoryId && categoryId !== ''
+          ? Number(categoryId)
+          : undefined,
       page,
       pageSize: 20,
     });
@@ -68,7 +90,7 @@ export default function Products() {
     (debouncedSearchText || categoryId);
 
   return (
-    <Container size="xl" py="xl">
+    <Container size="xl">
       <Stack gap="lg">
         <Title order={1}>Products</Title>
 
@@ -91,7 +113,6 @@ export default function Products() {
               data={categoryOptions}
               value={categoryId}
               onChange={handleCategoryChange}
-              disabled={categoriesLoading}
               size="md"
               clearable
             />

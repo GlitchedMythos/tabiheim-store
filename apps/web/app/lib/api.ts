@@ -1,4 +1,7 @@
-import type { ProductSearchResponse } from './types';
+import type {
+  ProductPricesResponse,
+  ProductSearchResponse,
+} from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
 
@@ -97,6 +100,20 @@ export const productsApi = {
     const endpoint = `/api/products/search${queryString ? `?${queryString}` : ''}`;
 
     return apiFetch<ProductSearchResponse>(endpoint);
+  },
+
+  /**
+   * Get prices for specific products
+   */
+  getPrices: async (productIds: number[]) => {
+    if (productIds.length === 0) {
+      return { data: {} };
+    }
+
+    const idsParam = productIds.join(',');
+    const endpoint = `/api/products/prices?productIds=${idsParam}`;
+
+    return apiFetch<ProductPricesResponse>(endpoint);
   },
 };
 

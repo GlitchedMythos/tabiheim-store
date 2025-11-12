@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   integer,
   numeric,
   pgTable,
@@ -133,20 +134,34 @@ export const productGroup = pgTable('product_group', {
   ),
 });
 
-export const product = pgTable('product', {
-  productId: integer('product_id').primaryKey(), // Static ID from external API
-  name: text('name').notNull(),
-  cleanName: text('clean_name'),
-  cardNumber: text('card_number'), // Card number - format varies by game (e.g., "003/142" for Pokemon, "OP11-001" for One Piece)
-  imageUrl: text('image_url'),
-  categoryId: integer('category_id'),
-  groupId: integer('group_id')
-    .notNull()
-    .references(() => productGroup.groupId, { onDelete: 'cascade' }),
-  url: text('url'),
-  modifiedOn: timestamp('modified_on', { mode: 'date' }),
-  imageCount: integer('image_count').default(0),
-});
+export const product = pgTable(
+  'product',
+  {
+    productId: integer('product_id').primaryKey(), // Static ID from external API
+    name: text('name').notNull(),
+    cleanName: text('clean_name'),
+    cardNumber: text('card_number'), // Card number - format varies by game (e.g., "003/142" for Pokemon, "OP11-001" for One Piece)
+    imageUrl: text('image_url'),
+    categoryId: integer('category_id'),
+    groupId: integer('group_id')
+      .notNull()
+      .references(() => productGroup.groupId, { onDelete: 'cascade' }),
+    url: text('url'),
+    modifiedOn: timestamp('modified_on', { mode: 'date' }),
+    imageCount: integer('image_count').default(0),
+  },
+  (table) => ({
+    // Index for filtering by group
+    groupIdIdx: index('idx_product_group_id').on(table.groupId),
+    // Index for filtering by category
+    categoryIdIdx: index('idx_product_category_id').on(table.categoryId),
+    // Composite index for common search patterns (group + category)
+    groupCategoryIdx: index('idx_product_group_category').on(
+      table.groupId,
+      table.categoryId
+    ),
+  })
+);
 
 export const presaleInfo = pgTable('presale_info', {
   productId: integer('product_id')
@@ -183,6 +198,10 @@ export const productSubtype = pgTable(
       table.productId,
       table.subTypeName
     ),
+    // Index for joining subtypes by product
+    productIdIdx: index('idx_product_subtype_product_id').on(
+      table.productId
+    ),
   })
 );
 
@@ -208,9 +227,18 @@ export const productPrice = pgTable(
       scale: 2,
     }),
   },
-  (table) => [
+  (table) => ({
     // Composite primary key required for TimescaleDB hypertable
     // Must include the partitioning column (recorded_at)
-    primaryKey({ columns: [table.id, table.recordedAt] }),
-  ]
+    pk: primaryKey({ columns: [table.id, table.recordedAt] }),
+    // Critical index for fetching latest prices for specific subtypes
+    subtypeTimeIdx: index('idx_price_subtype_time').on(
+      table.productSubtypeId,
+      table.recordedAt.desc()
+    ),
+    // Index for time-range queries
+    recordedAtIdx: index('idx_price_recorded_at').on(
+      table.recordedAt.desc()
+    ),
+  })
 );

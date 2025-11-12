@@ -5,17 +5,31 @@ import {
   Divider,
   Group,
   Image,
+  Skeleton,
   Stack,
   Text,
 } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
-import type { Product } from '../lib/types';
+import { useProductPrices } from '../hooks/useProductPrices';
+import type { Product, ProductMinimal } from '../lib/types';
 
 interface ProductCardProps {
-  product: Product;
+  product: Product | ProductMinimal;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  // Lazy load prices for this product
+  const { data: pricesData, isLoading: pricesLoading } =
+    useProductPrices({
+      productIds: [product.productId],
+    });
+
+  // Get subtypes from either the product (if already loaded) or the prices response
+  const subtypes =
+    'subtypes' in product && product.subtypes
+      ? product.subtypes
+      : pricesData?.data[product.productId.toString()] || [];
+
   // Find rarity in extended data
   const rarity = product.extendedData?.find(
     (data) => data.name.toLowerCase() === 'rarity'
@@ -73,43 +87,54 @@ export function ProductCard({ product }: ProductCardProps) {
           </Group>
 
           {/* Subtypes and Prices */}
-          {product.subtypes && product.subtypes.length > 0 && (
+          {pricesLoading ? (
             <>
               <Divider my="sm" />
               <Stack gap="xs">
-                {product.subtypes.map((subtype, index) => (
-                  <Stack key={index} gap={4}>
-                    {subtype.latestPrice ? (
-                      <Group gap="xs">
-                        {subtype.latestPrice.marketPrice && (
-                          <Badge
-                            color="green"
-                            variant="light"
-                            size="md"
-                          >
-                            {subtype.subTypeName}{' '}
-                            {formatPrice(
-                              subtype.latestPrice.marketPrice
-                            )}
-                          </Badge>
-                        )}
-                      </Group>
-                    ) : (
-                      <Text size="xs" c="dimmed">
-                        No price data available
-                      </Text>
-                    )}
-                  </Stack>
-                ))}
+                <Skeleton height={28} width="60%" />
+                <Skeleton height={28} width="50%" />
               </Stack>
             </>
+          ) : (
+            subtypes &&
+            subtypes.length > 0 && (
+              <>
+                <Divider my="sm" />
+                <Stack gap="xs">
+                  {subtypes.map((subtype, index) => (
+                    <Stack key={index} gap={4}>
+                      {subtype.latestPrice ? (
+                        <Group gap="xs">
+                          {subtype.latestPrice.marketPrice && (
+                            <Badge
+                              color="green"
+                              variant="light"
+                              size="md"
+                            >
+                              {subtype.subTypeName}{' '}
+                              {formatPrice(
+                                subtype.latestPrice.marketPrice
+                              )}
+                            </Badge>
+                          )}
+                        </Group>
+                      ) : (
+                        <Text size="xs" c="dimmed">
+                          No price data available
+                        </Text>
+                      )}
+                    </Stack>
+                  ))}
+                </Stack>
+              </>
+            )
           )}
 
           {/* TCGPlayer Link */}
           {product.url && (
             <Button
               component="a"
-              href={product.url}
+              href={`${product.url}?Language=English&Condition=Near+Mint&page=1`}
               target="_blank"
               rel="noopener noreferrer"
               rightSection={<IconExternalLink size={16} />}

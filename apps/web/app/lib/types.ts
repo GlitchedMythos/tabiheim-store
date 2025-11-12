@@ -20,11 +20,13 @@ export interface ProductPrice {
 }
 
 export interface ProductSubtype {
+  subtypeId: number;
   subTypeName: string;
   latestPrice: ProductPrice | null;
 }
 
-export interface Product {
+// Minimal product response (fast search)
+export interface ProductMinimal {
   productId: number;
   name: string;
   cleanName: string | null;
@@ -39,12 +41,16 @@ export interface Product {
     name: string | null;
     abbreviation: string | null;
   };
-  subtypes: ProductSubtype[];
-  extendedData?: Array<{
+  extendedData: Array<{
     name: string;
     displayName: string | null;
     value: string | null;
   }>;
+}
+
+// Full product with subtypes (for backward compatibility or when prices are loaded)
+export interface Product extends ProductMinimal {
+  subtypes?: ProductSubtype[];
 }
 
 export interface Pagination {
@@ -57,8 +63,13 @@ export interface Pagination {
 }
 
 export interface ProductSearchResponse {
-  data: Product[];
+  data: ProductMinimal[];
   pagination: Pagination;
+}
+
+// Product prices response (separate endpoint)
+export interface ProductPricesResponse {
+  data: Record<string, ProductSubtype[]>;
 }
 
 export interface Category {

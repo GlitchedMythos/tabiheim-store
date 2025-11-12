@@ -4,7 +4,7 @@ import {
   MantineProvider,
 } from '@mantine/core';
 import '@mantine/core/styles.css';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import {
   isRouteErrorResponse,
   Links,
@@ -13,10 +13,10 @@ import {
   Scripts,
   ScrollRestoration,
 } from 'react-router';
-import { useState } from 'react';
 
 import type { Route } from './+types/root';
 import './app.css';
+import { getQueryClient } from './lib/queryClient';
 
 export const links: Route.LinksFunction = () => [
   { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -37,17 +37,8 @@ const theme = createTheme({
 });
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 60 * 1000, // 1 minute
-            refetchOnWindowFocus: false,
-          },
-        },
-      })
-  );
+  // Use the shared QueryClient instance
+  const queryClient = getQueryClient();
 
   return (
     <html lang="en">

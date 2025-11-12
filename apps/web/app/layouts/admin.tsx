@@ -3,8 +3,8 @@ import {
   Avatar,
   Burger,
   Group,
+  NavLink as MantineNavLink,
   Menu,
-  NavLink,
   Stack,
   Title,
 } from '@mantine/core';
@@ -18,7 +18,12 @@ import {
   IconSettings,
   IconSun,
 } from '@tabler/icons-react';
-import { Outlet, redirect, useNavigate } from 'react-router';
+import {
+  Outlet,
+  NavLink as ReactRouterNavLink,
+  redirect,
+  useNavigate,
+} from 'react-router';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { authClient } from '../lib/auth';
 import type { Route } from './+types/admin';
@@ -40,7 +45,6 @@ export default function AdminLayout({
 }: Route.ComponentProps) {
   const [opened, { toggle }] = useDisclosure();
   const navigate = useNavigate();
-  const { user } = loaderData;
   const { computedColorScheme, toggleColorScheme } = useColorScheme();
 
   async function handleSignOut() {
@@ -116,24 +120,30 @@ export default function AdminLayout({
 
       <AppShell.Navbar p="md">
         <Stack gap="xs">
-          <NavLink
-            href="/dashboard"
+          <MantineNavLink
+            component={ReactRouterNavLink}
+            to="/dashboard"
             label="Dashboard"
             leftSection={<IconDashboard size={20} />}
             active={window.location.pathname === '/dashboard'}
           />
-          <NavLink
-            href="/products"
+          <MantineNavLink
+            component={ReactRouterNavLink}
+            to="/products"
             label="Products"
             leftSection={<IconFileSearch size={20} />}
             active={window.location.pathname === '/products'}
           />
-          <NavLink
+          <MantineNavLink
+            component={ReactRouterNavLink}
+            to="/games"
             label="Games"
             leftSection={<IconDeviceGamepad2 size={20} />}
             disabled
           />
-          <NavLink
+          <MantineNavLink
+            component={ReactRouterNavLink}
+            to="/settings"
             label="Settings"
             leftSection={<IconSettings size={20} />}
             disabled
