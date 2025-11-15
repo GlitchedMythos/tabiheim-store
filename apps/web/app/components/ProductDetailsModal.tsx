@@ -1,3 +1,4 @@
+import { LineChart } from '@mantine/charts';
 import {
   Badge,
   Group,
@@ -9,17 +10,7 @@ import {
   Title,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { useState } from 'react';
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { useMemo, useState } from 'react';
 import { useProductDetail } from '../hooks/useProductDetail';
 import { useProductPriceTimeline } from '../hooks/useProductPriceTimeline';
 
@@ -76,66 +67,89 @@ export function ProductDetailsModal({
       enabled: opened && productId !== null && startDate !== null,
     });
 
-  // Transform timeline data for Recharts
-  const chartData =
-    (priceTimeline?.subtypes.length ?? 0) > 0 && startDate
-      ? (() => {
-          // Generate all dates from startDate to today
-          const allDates = new Set<string>();
-          const currentDate = new Date(startDate);
-          const endDate = new Date();
+  const chartData = useMemo(() => {
+    if (!priceTimeline?.subtypes || priceTimeline.subtypes.length === 0 || startDate === null) {
+      return [];
+    }
 
-          while (currentDate <= endDate) {
-            allDates.add(currentDate.toLocaleDateString());
-            currentDate.setDate(currentDate.getDate() + 1);
+    // Helper function to format date as YYYY-MM-DD in local timezone
+    const formatLocalDate = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    // Transform data shape from:
+    // { subtypes: [{ subTypeName, timeline: [{ bucket, avgMarketPrice }] }] }
+    // To:
+    // [{ date: string, [subtypeName]: number | null }]
+
+    // Normalize start date and create date key for filtering
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0); // Normalize to start of day
+    const startDateKey = formatLocalDate(start);
+
+    // Create a map to group data points by date (using YYYY-MM-DD format)
+    const dateMap = new Map<string, Record<string, number | string | null>>();
+
+    // Iterate through each subtype and its timeline
+    priceTimeline.subtypes.forEach((subtype) => {
+      subtype.timeline.forEach((point) => {
+        const date = new Date(point.bucket);
+        const dateKey = formatLocalDate(date); // YYYY-MM-DD format in local timezone
+
+        // Only include dates >= start date
+        if (dateKey >= startDateKey) {
+          // Initialize the date entry if it doesn't exist
+          if (!dateMap.has(dateKey)) {
+            dateMap.set(dateKey, { date: dateKey });
           }
 
-          // Also include any dates from the actual data
-          priceTimeline?.subtypes.forEach((subtype) => {
-            subtype.timeline.forEach((point) => {
-              allDates.add(
-                new Date(point.bucket).toLocaleDateString()
-              );
-            });
-          });
+          // Add the market price for this subtype
+          const entry = dateMap.get(dateKey)!;
+          if (point.avgMarketPrice) {
+            entry[subtype.subTypeName] = parseFloat(point.avgMarketPrice);
+          }
+        }
+      });
+    });
 
-          // Create a map of date -> {subtype -> price}
-          const dataByDate = new Map<
-            string,
-            Record<string, number | null>
-          >();
-          allDates.forEach((date) => {
-            dataByDate.set(date, {});
-          });
+    // Generate complete date range from startDate to now
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Normalize to start of day
 
-          // Fill in the data
-          priceTimeline?.subtypes.forEach((subtype) => {
-            subtype.timeline.forEach((point) => {
-              const date = new Date(
-                point.bucket
-              ).toLocaleDateString();
-              const data = dataByDate.get(date);
-              if (data) {
-                data[subtype.subTypeName] = point.avgMarketPrice
-                  ? parseFloat(point.avgMarketPrice)
-                  : null;
-              }
-            });
-          });
+    // Fill in missing dates
+    const currentDate = new Date(start);
+    while (currentDate <= now) {
+      const dateKey = formatLocalDate(currentDate); // YYYY-MM-DD format in local timezone
 
-          // Convert to array format for Recharts
-          return Array.from(dataByDate.entries())
-            .map(([date, prices]) => ({
-              date,
-              ...prices,
-            }))
-            .sort(
-              (a, b) =>
-                new Date(a.date).getTime() -
-                new Date(b.date).getTime()
-            );
-        })()
-      : [];
+      // If this date doesn't have data, create an entry with just the date
+      if (!dateMap.has(dateKey)) {
+        dateMap.set(dateKey, { date: dateKey });
+      }
+
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Convert map to array and sort by date
+    return Array.from(dateMap.values()).sort((a, b) =>
+      (a.date as string).localeCompare(b.date as string)
+    );
+  }, [priceTimeline, startDate]);
+
+  // Generate series configuration from priceTimeline
+  const chartSeries = useMemo(() => {
+    if (!priceTimeline?.subtypes) {
+      return [];
+    }
+
+    return priceTimeline.subtypes.map((subtype, index) => ({
+      name: subtype.subTypeName,
+      color: CHART_COLORS[index % CHART_COLORS.length],
+    }));
+  }, [priceTimeline]);
 
   // Find rarity in extended data
   const rarity = product?.extendedData?.find(
@@ -146,38 +160,6 @@ export function ProductDetailsModal({
   const formatPrice = (value: number): string => {
     return `$${value.toFixed(2)}`;
   };
-
-  // Calculate Y-axis domain with padding to center the chart
-  const calculateYAxisDomain = (): [number, number] => {
-    if (chartData.length === 0) return [0, 100];
-
-    // Get all price values from chart data
-    const allPrices: number[] = [];
-    chartData.forEach((dataPoint) => {
-      Object.entries(dataPoint).forEach(([key, value]) => {
-        if (key !== 'date' && typeof value === 'number') {
-          allPrices.push(value);
-        }
-      });
-    });
-
-    if (allPrices.length === 0) return [0, 100];
-
-    const minPrice = Math.min(...allPrices);
-    const maxPrice = Math.max(...allPrices);
-
-    // Add 15% padding above and below to center the line
-    const range = maxPrice - minPrice;
-    const padding = Math.max(range * 0.15, 0.5); // Minimum $0.50 padding
-
-    // Round to 2 decimal places for clean axis labels
-    const min = Math.max(0, Math.floor((minPrice - padding) * 100) / 100);
-    const max = Math.ceil((maxPrice + padding) * 100) / 100;
-
-    return [min, max];
-  };
-
-  const yAxisDomain = calculateYAxisDomain();
 
   return (
     <Modal
@@ -299,57 +281,30 @@ export function ProductDetailsModal({
               ) : chartData.length > 0 &&
                 priceTimeline?.subtypes &&
                 priceTimeline.subtypes.length > 0 ? (
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart
-                    data={chartData}
-                    margin={{
-                      top: 5,
-                      right: 30,
-                      left: 20,
-                      bottom: 5,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="date"
-                      label={{
-                        value: 'Date',
-                        position: 'insideBottom',
-                        offset: -5,
-                      }}
-                    />
-                    <YAxis
-                      domain={yAxisDomain}
-                      label={{
-                        value: 'Price ($)',
-                        angle: -90,
-                        position: 'insideLeft',
-                      }}
-                      tickFormatter={(value) => `$${value}`}
-                    />
-                    <Tooltip
-                      formatter={(value: number) =>
-                        formatPrice(value)
-                      }
-                      labelStyle={{ color: '#000' }}
-                    />
-                    <Legend />
-                    {priceTimeline.subtypes.map((subtype, index) => (
-                      <Line
-                        key={subtype.subtypeId}
-                        type="monotone"
-                        dataKey={subtype.subTypeName}
-                        stroke={
-                          CHART_COLORS[index % CHART_COLORS.length]
-                        }
-                        strokeWidth={2}
-                        dot={{ r: 3 }}
-                        activeDot={{ r: 5 }}
-                        connectNulls
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
+                <LineChart
+                  h={400}
+                  data={chartData}
+                  dataKey="date"
+                  series={chartSeries}
+                  withLegend
+                  withDots={false}
+                  curveType="linear"
+                  connectNulls
+                  valueFormatter={(value) => formatPrice(value)}
+                  xAxisProps={{
+                    tickFormatter: (value) => {
+                      const date = new Date(value);
+                      return date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      });
+                    },
+                  }}
+                  yAxisLabel="Price"
+                  gridAxis="xy"
+                  withTooltip
+                  tooltipAnimationDuration={200}
+                />
               ) : (
                 <Text size="sm" c="dimmed" ta="center" py="xl">
                   No price history available for the selected date

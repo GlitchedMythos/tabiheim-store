@@ -159,6 +159,39 @@ export const ZProductPricesResponse = z.object({
 
 export type ProductPricesResponse = z.infer<typeof ZProductPricesResponse>;
 
+// Product Sparklines Schemas
+export const ZProductSparklinesQuery = z.object({
+  productIds: z
+    .string()
+    .transform((val) => val.split(',').map((id) => parseInt(id.trim(), 10)))
+    .pipe(z.array(z.number().int().positive()).min(1).max(100)),
+  days: z.coerce.number().int().positive().max(90).default(14).optional(),
+});
+
+export type ProductSparklinesQuery = z.infer<typeof ZProductSparklinesQuery>;
+
+export const ZProductSparklinesResponse = z.object({
+  data: z.record(
+    z.string(), // productId as string key
+    z.array(
+      z.object({
+        subtypeId: z.number(),
+        subTypeName: z.string(),
+        sparklineData: z.array(
+          z.object({
+            date: z.date(),
+            marketPrice: z.number(),
+          })
+        ),
+      })
+    )
+  ),
+});
+
+export type ProductSparklinesResponse = z.infer<
+  typeof ZProductSparklinesResponse
+>;
+
 // Product Detail Schemas
 export const ZProductIdParams = z.object({
   productId: z.coerce.number().int().positive(),

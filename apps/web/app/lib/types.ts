@@ -137,3 +137,19 @@ export interface ProductPriceTimeline {
   }>;
 }
 
+// Sparkline data types
+export interface SparklinePoint {
+  date: Date;
+  marketPrice: number;
+}
+
+export interface ProductSubtypeSparkline {
+  subtypeId: number;
+  subTypeName: string;
+  sparklineData: SparklinePoint[];
+}
+
+export interface ProductSparklinesResponse {
+  data: Record<string, ProductSubtypeSparkline[]>;
+}
+

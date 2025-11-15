@@ -1,3 +1,4 @@
+import { Sparkline } from '@mantine/charts';
 import {
   Badge,
   Button,
@@ -9,12 +10,14 @@ import {
   Stack,
   Text,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useIntersection } from '@mantine/hooks';
 import {
   IconExternalLink,
   IconInfoCircle,
 } from '@tabler/icons-react';
+import { useRef, useState } from 'react';
 import { useProductPrices } from '../hooks/useProductPrices';
+import { useProductSparklines } from '../hooks/useProductSparklines';
 import type { Product, ProductMinimal } from '../lib/types';
 import { ProductDetailsModal } from './ProductDetailsModal';
 
@@ -27,17 +30,46 @@ export function ProductCard({ product }: ProductCardProps) {
   const [modalOpened, { open: openModal, close: closeModal }] =
     useDisclosure(false);
 
+  // Intersection observer for lazy loading sparklines
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hasBeenVisible, setHasBeenVisible] = useState(false);
+  const { ref: intersectionRef, entry } = useIntersection({
+    root: null,
+    threshold: 0.1,
+  });
+
+  // Mark as visible when it enters viewport
+  if (entry?.isIntersecting && !hasBeenVisible) {
+    setHasBeenVisible(true);
+  }
+
+  // Merge intersection ref with container ref
+  const setRefs = (node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    intersectionRef(node);
+  };
+
   // Lazy load prices for this product
   const { data: pricesData, isLoading: pricesLoading } =
     useProductPrices({
       productIds: [product.productId],
     });
 
+  // Lazy load sparklines only when card has been visible
+  const { data: sparklinesData } = useProductSparklines({
+    productIds: [product.productId],
+    days: 14,
+    enabled: hasBeenVisible,
+  });
+
   // Get subtypes from either the product (if already loaded) or the prices response
   const subtypes =
     'subtypes' in product && product.subtypes
       ? product.subtypes
       : pricesData?.data[product.productId.toString()] || [];
+
+  // Get sparkline data for this product
+  const sparklines = sparklinesData?.data[product.productId.toString()] || [];
 
   // Find rarity in extended data
   const rarity = product.extendedData?.find(
@@ -52,7 +84,7 @@ export function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder>
+    <Card shadow="sm" padding="lg" radius="md" withBorder ref={setRefs}>
       <Group
         wrap="nowrap"
         justify="flex-start"
@@ -113,20 +145,58 @@ export function ProductCard({ product }: ProductCardProps) {
                   {subtypes.map((subtype, index) => (
                     <Stack key={index} gap={4}>
                       {subtype.latestPrice ? (
-                        <Group gap="xs">
-                          {subtype.latestPrice.marketPrice && (
-                            <Badge
-                              color="green"
-                              variant="light"
-                              size="md"
-                            >
-                              {subtype.subTypeName}{' '}
-                              {formatPrice(
-                                subtype.latestPrice.marketPrice
-                              )}
-                            </Badge>
+                        <>
+                          <Group gap="xs">
+                            {subtype.latestPrice.marketPrice && (
+                              <Badge
+                                color="green"
+                                variant="light"
+                                size="md"
+                              >
+                                {subtype.subTypeName}{' '}
+                                {formatPrice(
+                                  subtype.latestPrice.marketPrice
+                                )}
+                              </Badge>
+                            )}
+                          </Group>
+                          {subtype.latestPrice.marketPrice &&
+                            sparklines.length > 0 && (
+                              <>
+                                {sparklines
+                                  .filter(
+                                    (s) => s.subtypeId === subtype.subtypeId
+                                  )
+                                  .map((sparkline, idx) => {
+                                    const sparklineValues =
+                                      sparkline.sparklineData.map(
+                                        (point) => point.marketPrice
+                                      );
+                                    return sparklineValues.length > 0 ? (
+                                      <Sparkline
+                                        key={`${sparkline.subtypeId}-${idx}`}
+                                        w={100}
+                                        miw={100}
+                                        h={40}
+                                        mih={40}
+                                        data={sparklineValues}
+                                        curveType="linear"
+                                        color="teal"
+                                        trendColors={{ positive: 'teal.6', negative: 'red.6', neutral: 'gray.5' }}
+                                        connectNulls
+                                        fillOpacity={0.9}
+                                        strokeWidth={1.5}
+                                      />
+                                    ) : null;
+                                  })}
+                              </>
+                            )}
+                          {!subtype.latestPrice.marketPrice && (
+                            <Text size="xs" c="dimmed" fs="italic">
+                              No price history available
+                            </Text>
                           )}
-                        </Group>
+                        </>
                       ) : (
                         <Text size="xs" c="dimmed">
                           No price data available

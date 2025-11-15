@@ -133,7 +133,7 @@ export default function Products() {
         {/* Loading State */}
         {productsLoading && (
           <SimpleGrid
-            cols={{ base: 1, sm: 2, md: 3, lg: 4 }}
+            cols={{ base: 1, sm: 1, md: 2, lg: 2, xl: 3 }}
             spacing="lg"
           >
             {Array.from({ length: 8 }).map((_, index) => (

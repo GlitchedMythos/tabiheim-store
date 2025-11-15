@@ -1,4 +1,4 @@
-import { and, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import {
   extendedData,
@@ -13,6 +13,7 @@ import {
   ZProductPriceTimelineParams,
   ZProductPriceTimelineQuery,
   ZProductSearchQuery,
+  ZProductSparklinesQuery,
 } from '../dtos';
 import { requireAuth } from '../middleware/auth';
 import type { DrizzleDB } from '../middleware/dbProvider';
@@ -95,7 +96,7 @@ productsRouter.get(
         .where(whereClause)
         .limit(pageSize)
         .offset((page - 1) * pageSize)
-        .orderBy(product.productId),
+        .orderBy(desc(product.modifiedOn)),
 
       // Count query
       db
@@ -319,6 +320,117 @@ productsRouter.get(
 
     return c.json({
       data: pricesByProduct,
+    });
+  }
+);
+
+// Get sparkline data for product cards (batch)
+productsRouter.get(
+  '/prices/sparklines',
+  requireAuth,
+  zodValidator('query', ZProductSparklinesQuery),
+  async (c) => {
+    const db = c.var.db;
+    const { productIds, days = 14 } = c.req.valid('query');
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Fetch subtypes for the requested products
+    const subtypesData = await db
+      .select({
+        id: productSubtype.id,
+        productId: productSubtype.productId,
+        subTypeName: productSubtype.subTypeName,
+      })
+      .from(productSubtype)
+      .where(inArray(productSubtype.productId, productIds));
+
+    if (subtypesData.length === 0) {
+      return c.json({
+        data: productIds.reduce((acc, id) => {
+          acc[id.toString()] = [];
+          return acc;
+        }, {} as Record<string, never[]>),
+      });
+    }
+
+    const subtypeIds = subtypesData.map((st) => st.id);
+
+    // Query daily market prices only
+    const sparklineResult = await db.execute<{
+      productSubtypeId: number;
+      bucket: Date;
+      avgMarketPrice: string | null;
+    }>(sql`
+      SELECT
+        product_subtype_id as "productSubtypeId",
+        time_bucket('1 day', recorded_at) AS bucket,
+        AVG(market_price)::numeric(10, 2) AS "avgMarketPrice"
+      FROM product_price
+      WHERE product_subtype_id IN (${sql.join(
+        subtypeIds.map((id) => sql`${id}`),
+        sql`, `
+      )})
+        AND recorded_at >= ${startDate.toISOString()}::timestamptz
+        AND market_price IS NOT NULL
+      GROUP BY product_subtype_id, bucket
+      ORDER BY product_subtype_id, bucket ASC
+    `);
+
+    // Group by subtype ID
+    const dataBySubtype = sparklineResult.rows.reduce(
+      (acc, row) => {
+        if (!acc[row.productSubtypeId]) {
+          acc[row.productSubtypeId] = [];
+        }
+        acc[row.productSubtypeId].push({
+          date: row.bucket,
+          marketPrice: parseFloat(row.avgMarketPrice || '0'),
+        });
+        return acc;
+      },
+      {} as Record<number, Array<{ date: Date; marketPrice: number }>>
+    );
+
+    // Group by product ID
+    const sparklinesByProduct = subtypesData.reduce(
+      (acc, subtype) => {
+        const productIdStr = subtype.productId.toString();
+        if (!acc[productIdStr]) {
+          acc[productIdStr] = [];
+        }
+        const sparklineData = dataBySubtype[subtype.id] || [];
+        // Only include subtypes with sparkline data (market prices)
+        if (sparklineData.length > 0) {
+          acc[productIdStr].push({
+            subtypeId: subtype.id,
+            subTypeName: subtype.subTypeName,
+            sparklineData,
+          });
+        }
+        return acc;
+      },
+      {} as Record<
+        string,
+        Array<{
+          subtypeId: number;
+          subTypeName: string;
+          sparklineData: Array<{ date: Date; marketPrice: number }>;
+        }>
+      >
+    );
+
+    // Ensure all requested product IDs are in response
+    productIds.forEach((id) => {
+      const idStr = id.toString();
+      if (!sparklinesByProduct[idStr]) {
+        sparklinesByProduct[idStr] = [];
+      }
+    });
+
+    return c.json({
+      data: sparklinesByProduct,
     });
   }
 );

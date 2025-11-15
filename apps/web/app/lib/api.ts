@@ -3,6 +3,7 @@ import type {
   ProductPriceTimeline,
   ProductPricesResponse,
   ProductSearchResponse,
+  ProductSparklinesResponse,
 } from './types';
 
 const API_BASE_URL =
@@ -147,5 +148,19 @@ export const productsApi = {
 
     const endpoint = `/api/products/${productId}/prices/timeline?${searchParams.toString()}`;
     return apiFetch<ProductPriceTimeline>(endpoint);
+  },
+
+  /**
+   * Get sparkline data for multiple products
+   */
+  getSparklines: async (productIds: number[], days: number = 14) => {
+    if (productIds.length === 0) {
+      return { data: {} };
+    }
+
+    const idsParam = productIds.join(',');
+    const endpoint = `/api/products/prices/sparklines?productIds=${idsParam}&days=${days}`;
+
+    return apiFetch<ProductSparklinesResponse>(endpoint);
   },
 };
