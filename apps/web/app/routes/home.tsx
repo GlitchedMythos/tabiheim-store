@@ -3,17 +3,15 @@ import {
   Anchor,
   Button,
   Center,
-  Loader,
   Paper,
   Stack,
   Text,
   TextInput,
-  Title,
+  Title
 } from '@mantine/core';
 import { IconMail } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { useAuth } from '../hooks/useAuth';
+import { useState } from 'react';
+import { redirect } from 'react-router';
 import { authClient } from '../lib/auth';
 import type { Route } from './+types/home';
 
@@ -24,20 +22,29 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+// Redirect to dashboard if already authenticated
+export async function clientLoader() {
+  try {
+    const { data: session } = await authClient.getSession();
+    if (session?.user) {
+      throw redirect('/dashboard');
+    }
+  } catch (error) {
+    // If error is a redirect Response, re-throw it
+    if (error instanceof Response) {
+      throw error;
+    }
+    // Otherwise, log and continue (user not authenticated)
+    console.error('Error checking session:', error);
+  }
+  return null;
+}
+
 export default function Home() {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
-
-  // Redirect to dashboard if already authenticated
-  useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      navigate('/dashboard');
-    }
-  }, [isAuthenticated, authLoading, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,25 +66,6 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }
-
-  if (authLoading) {
-    return (
-      <Center
-        style={{
-          minHeight: '100vh',
-          background:
-            'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
-        }}
-      >
-        <Stack align="center" gap="md">
-          <Loader size="lg" color="white" />
-          <Text c="white" size="xl">
-            Loading...
-          </Text>
-        </Stack>
-      </Center>
-    );
   }
 
   if (sent) {

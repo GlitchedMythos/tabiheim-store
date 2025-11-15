@@ -78,10 +78,19 @@ export function ProductDetailsModal({
 
   // Transform timeline data for Recharts
   const chartData =
-    priceTimeline?.subtypes.length ?? 0 > 0
+    (priceTimeline?.subtypes.length ?? 0) > 0 && startDate
       ? (() => {
-          // Get all unique dates across all subtypes
+          // Generate all dates from startDate to today
           const allDates = new Set<string>();
+          const currentDate = new Date(startDate);
+          const endDate = new Date();
+
+          while (currentDate <= endDate) {
+            allDates.add(currentDate.toLocaleDateString());
+            currentDate.setDate(currentDate.getDate() + 1);
+          }
+
+          // Also include any dates from the actual data
           priceTimeline?.subtypes.forEach((subtype) => {
             subtype.timeline.forEach((point) => {
               allDates.add(
@@ -137,6 +146,38 @@ export function ProductDetailsModal({
   const formatPrice = (value: number): string => {
     return `$${value.toFixed(2)}`;
   };
+
+  // Calculate Y-axis domain with padding to center the chart
+  const calculateYAxisDomain = (): [number, number] => {
+    if (chartData.length === 0) return [0, 100];
+
+    // Get all price values from chart data
+    const allPrices: number[] = [];
+    chartData.forEach((dataPoint) => {
+      Object.entries(dataPoint).forEach(([key, value]) => {
+        if (key !== 'date' && typeof value === 'number') {
+          allPrices.push(value);
+        }
+      });
+    });
+
+    if (allPrices.length === 0) return [0, 100];
+
+    const minPrice = Math.min(...allPrices);
+    const maxPrice = Math.max(...allPrices);
+
+    // Add 15% padding above and below to center the line
+    const range = maxPrice - minPrice;
+    const padding = Math.max(range * 0.15, 0.5); // Minimum $0.50 padding
+
+    // Round to 2 decimal places for clean axis labels
+    const min = Math.max(0, Math.floor((minPrice - padding) * 100) / 100);
+    const max = Math.ceil((maxPrice + padding) * 100) / 100;
+
+    return [min, max];
+  };
+
+  const yAxisDomain = calculateYAxisDomain();
 
   return (
     <Modal
@@ -278,6 +319,7 @@ export function ProductDetailsModal({
                       }}
                     />
                     <YAxis
+                      domain={yAxisDomain}
                       label={{
                         value: 'Price ($)',
                         angle: -90,
